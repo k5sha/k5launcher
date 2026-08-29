@@ -1,16 +1,34 @@
-import os
 import json
-import threading
+import os
+import subprocess
 import sys
+import threading
 import time
+import urllib.error
 import urllib.request
-from PyQt6.QtCore import Qt, pyqtSignal, QObject, QUrl
-from PyQt6.QtGui import QPixmap, QDesktopServices, QIcon
-from PyQt6.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QLabel
-from qfluentwidgets import (LineEdit, ComboBox, ProgressBar, PrimaryPushButton, 
-                            PushButton, TransparentToolButton, FluentWindow, SwitchButton, 
-                            setTheme, Theme, ElevatedCardWidget, TitleLabel, BodyLabel, 
-                            CaptionLabel, setThemeColor, InfoBar, InfoBarPosition)
+
+from PyQt6.QtCore import QObject, Qt, QUrl, pyqtSignal
+from PyQt6.QtGui import QDesktopServices, QIcon, QPixmap
+from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from qfluentwidgets import (
+    BodyLabel,
+    CaptionLabel,
+    ComboBox,
+    ElevatedCardWidget,
+    FluentWindow,
+    InfoBar,
+    InfoBarPosition,
+    LineEdit,
+    PrimaryPushButton,
+    ProgressBar,
+    PushButton,
+    SwitchButton,
+    Theme,
+    TitleLabel,
+    TransparentToolButton,
+    setTheme,
+    setThemeColor,
+)
 from qfluentwidgets import FluentIcon as FIF
 
 CURRENT_VERSION = "v1.0.1"
@@ -130,7 +148,7 @@ class K5LauncherApp(FluentWindow):
             os.makedirs(os.path.dirname(self.config_file), exist_ok=True)
             with open(self.config_file, "w", encoding="utf-8") as f:
                 json.dump(cfg, f, ensure_ascii=False, indent=4)
-        except Exception:
+        except (OSError, TypeError):
             pass
 
     def check_updates_async(self):
@@ -143,7 +161,7 @@ class K5LauncherApp(FluentWindow):
                 html_url = data.get("html_url", "https://github.com/k5sha/k5launcher/releases")
                 if latest_version and latest_version != CURRENT_VERSION:
                     self.signals.update_available.emit(latest_version, html_url)
-        except Exception:
+        except (urllib.error.URLError, json.JSONDecodeError, TimeoutError):
             pass
 
     def on_update_available(self, version, url):
@@ -321,7 +339,7 @@ class K5LauncherApp(FluentWindow):
         try:
             versions = self.launcher_core.get_release_versions()
             self.signals.versions_loaded.emit(versions)
-        except Exception as e:
+        except (urllib.error.URLError, json.JSONDecodeError, TimeoutError, ValueError) as e:
             self.signals.error.emit(f"Помилка завантаження версій: {e}")
 
     def on_versions_loaded(self, versions):
@@ -408,7 +426,7 @@ class K5LauncherApp(FluentWindow):
         except InterruptedError:
             self.signals.show_window.emit()
             self.signals.canceled.emit()
-        except Exception as e:
+        except (subprocess.SubprocessError, OSError, ValueError) as e:
             self.signals.show_window.emit()
             self.signals.error.emit(str(e))
 
