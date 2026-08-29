@@ -2,19 +2,28 @@ import os
 import json
 import threading
 import sys
-from PyQt6.QtCore import Qt, pyqtSignal, QObject
-from PyQt6.QtGui import QPixmap
+import time
+import urllib.request
+from PyQt6.QtCore import Qt, pyqtSignal, QObject, QUrl
+from PyQt6.QtGui import QPixmap, QDesktopServices, QIcon
 from PyQt6.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QLabel
 from qfluentwidgets import (LineEdit, ComboBox, ProgressBar, PrimaryPushButton, 
-                            PushButton, FluentWindow, SwitchButton, CheckBox, setTheme, Theme,
-                            ElevatedCardWidget, TitleLabel, BodyLabel, CaptionLabel, 
-                            setThemeColor, InfoBar, InfoBarPosition)
+                            PushButton, TransparentToolButton, FluentWindow, SwitchButton, 
+                            setTheme, Theme, ElevatedCardWidget, TitleLabel, BodyLabel, 
+                            CaptionLabel, setThemeColor, InfoBar, InfoBarPosition)
 from qfluentwidgets import FluentIcon as FIF
+
+CURRENT_VERSION = "v1.0.1"
 
 def resource_path(relative_path):
     if hasattr(sys, '_MEIPASS'):
         return os.path.join(sys._MEIPASS, relative_path)
     return os.path.join(os.path.abspath("."), relative_path)
+
+def get_app_dir():
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.abspath(".")
 
 
 class ProgressSignal(QObject):
@@ -23,8 +32,11 @@ class ProgressSignal(QObject):
     canceled = pyqtSignal()
     error = pyqtSignal(str)
     
+    hide_window = pyqtSignal()
+    show_window = pyqtSignal()
+    
     versions_loaded = pyqtSignal(list)
-    fabric_loaders_loaded = pyqtSignal(list)
+    update_available = pyqtSignal(str, str)
 
 
 class K5LauncherApp(FluentWindow):
@@ -33,8 +45,11 @@ class K5LauncherApp(FluentWindow):
         
         setThemeColor('#7b61ff')
         
-        app_dir = os.path.join(os.environ.get("LOCALAPPDATA", os.path.expanduser("~")), "K5Launcher")
-        os.makedirs(app_dir, exist_ok=True)
+        app_icon = resource_path("assets/logo.ico")
+        if os.path.exists(app_icon):
+            self.setWindowIcon(QIcon(app_icon))
+        
+        app_dir = get_app_dir()
         self.config_file = os.path.join(app_dir, "k5launcher_config.json")
         
         self.load_config()
@@ -52,8 +67,10 @@ class K5LauncherApp(FluentWindow):
         self.signals.finished.connect(self.on_launch_finished)
         self.signals.canceled.connect(self.on_launch_canceled)
         self.signals.error.connect(self.on_launch_error)
+        self.signals.hide_window.connect(self.hide)
+        self.signals.show_window.connect(self.show)
         self.signals.versions_loaded.connect(self.on_versions_loaded)
-        self.signals.fabric_loaders_loaded.connect(self.on_fabric_loaders_loaded)
+        self.signals.update_available.connect(self.on_update_available)
 
         self.setWindowTitle("K5Launcher")
         self.resize(850, 620)
@@ -71,11 +88,13 @@ class K5LauncherApp(FluentWindow):
         self.addSubInterface(self.settings_interface, FIF.SETTING, "Налаштування")
         
         setTheme(Theme.DARK if self.is_dark_theme else Theme.LIGHT)
+        
         threading.Thread(target=self.load_versions_async, daemon=True).start()
+        threading.Thread(target=self.check_updates_async, daemon=True).start()
 
     def load_config(self):
-        default_app_dir = os.path.join(os.environ.get("LOCALAPPDATA", os.path.expanduser("~")), "K5Launcher")
-        default_game_dir = os.path.join(default_app_dir, "game")
+        app_dir = get_app_dir()
+        default_game_dir = os.path.join(app_dir, ".minecraft")
         
         if os.path.exists(self.config_file):
             try:
@@ -86,8 +105,6 @@ class K5LauncherApp(FluentWindow):
                 self.default_ram = cfg.get("ram", "4")
                 self.saved_username = cfg.get("username", "Player")
                 self.saved_version = cfg.get("last_version", None)
-                self.is_fabric = cfg.get("is_fabric", False)
-                self.saved_fabric_loader = cfg.get("last_fabric_loader", None)
                 self.is_dark_theme = cfg.get("dark_theme", True)
                 return
             except (json.JSONDecodeError, OSError):
@@ -98,8 +115,6 @@ class K5LauncherApp(FluentWindow):
         self.default_ram = "4"
         self.saved_username = "Player"
         self.saved_version = None
-        self.is_fabric = False
-        self.saved_fabric_loader = None
         self.is_dark_theme = True
 
     def save_config(self):
@@ -109,8 +124,6 @@ class K5LauncherApp(FluentWindow):
             "ram": self.entry_ram.text().strip(),
             "username": self.username_entry.text().strip(),
             "last_version": self.combo_version.currentText(),
-            "is_fabric": self.check_fabric.isChecked(),
-            "last_fabric_loader": self.combo_fabric_loader.currentText(),
             "dark_theme": self.is_dark_theme
         }
         try:
@@ -119,6 +132,38 @@ class K5LauncherApp(FluentWindow):
                 json.dump(cfg, f, ensure_ascii=False, indent=4)
         except Exception:
             pass
+
+    def check_updates_async(self):
+        try:
+            url = "https://api.github.com/repos/k5sha/k5launcher/releases/latest"
+            req = urllib.request.Request(url, headers={'User-Agent': 'K5Launcher'})
+            with urllib.request.urlopen(req, timeout=4) as resp:
+                data = json.loads(resp.read().decode())
+                latest_version = data.get("tag_name")
+                html_url = data.get("html_url", "https://github.com/k5sha/k5launcher/releases")
+                if latest_version and latest_version != CURRENT_VERSION:
+                    self.signals.update_available.emit(latest_version, html_url)
+        except Exception:
+            pass
+
+    def on_update_available(self, version, url):
+        InfoBar.info(
+            title='Доступне оновлення!',
+            content=f'Вийшла нова версія {version}. Оновіть додаток на GitHub.',
+            orient=Qt.Orientation.Horizontal,
+            isClosable=True,
+            position=InfoBarPosition.TOP_RIGHT,
+            duration=10000,
+            parent=self
+        )
+
+    def open_game_folder(self):
+        path = os.path.abspath(self.entry_dir.text().strip() if hasattr(self, 'entry_dir') else self.game_path)
+        os.makedirs(path, exist_ok=True)
+        if os.name == 'nt':
+            os.startfile(path)
+        else:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(path))
 
     def init_home_page(self):
         main_layout = QHBoxLayout(self.home_interface)
@@ -157,19 +202,7 @@ class K5LauncherApp(FluentWindow):
         self.combo_version = ComboBox(card)
         self.combo_version.addItem("Синхронізація...")
         self.combo_version.setFixedWidth(350)
-        self.combo_version.currentTextChanged.connect(self.on_game_version_changed)
         card_layout.addWidget(self.combo_version)
-
-        self.check_fabric = CheckBox("Увімкнути Fabric Loader", card)
-        self.check_fabric.setChecked(self.is_fabric)
-        self.check_fabric.stateChanged.connect(self.toggle_fabric)
-        card_layout.addWidget(self.check_fabric)
-
-        self.combo_fabric_loader = ComboBox(card)
-        self.combo_fabric_loader.addItem("Очікування версії...")
-        self.combo_fabric_loader.setFixedWidth(350)
-        self.combo_fabric_loader.setEnabled(self.is_fabric)
-        card_layout.addWidget(self.combo_fabric_loader)
 
         content_layout.addWidget(card, alignment=Qt.AlignmentFlag.AlignCenter)
 
@@ -186,22 +219,29 @@ class K5LauncherApp(FluentWindow):
 
         btn_layout = QHBoxLayout()
         btn_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
+        btn_layout.setSpacing(8)
+
         self.start_button = PrimaryPushButton(FIF.PLAY_SOLID, "ЗАПУСТИТИ", self.home_interface)
-        self.start_button.setFixedSize(220, 46)
+        self.start_button.setFixedSize(200, 46)
         self.start_button.clicked.connect(self.start_launch_thread)
         btn_layout.addWidget(self.start_button)
 
+        self.folder_button = TransparentToolButton(FIF.FOLDER, self.home_interface)
+        self.folder_button.setToolTip("Відкрити папку гри")
+        self.folder_button.setFixedSize(46, 46)
+        self.folder_button.clicked.connect(self.open_game_folder)
+        btn_layout.addWidget(self.folder_button)
+
         self.cancel_button = PushButton(FIF.CLOSE, "ВІДМІНИТИ", self.home_interface)
-        self.cancel_button.setFixedSize(220, 46)
+        self.cancel_button.setFixedSize(200, 46)
         self.cancel_button.clicked.connect(self.cancel_download)
         self.cancel_button.hide()
-        
         btn_layout.addWidget(self.cancel_button)
+
         content_layout.addLayout(btn_layout)
         
         content_layout.addSpacing(6)
-        version_label = CaptionLabel("K5Launcher • crafted with 💜 by k5sha", self.home_interface)
+        version_label = CaptionLabel(f"K5Launcher {CURRENT_VERSION} • crafted with 💜 by k5sha", self.home_interface)
         version_label.setStyleSheet("color: #8e8e93; font-weight: 500;")
         version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         content_layout.addWidget(version_label)
@@ -248,9 +288,17 @@ class K5LauncherApp(FluentWindow):
         sc_layout.addWidget(self.entry_ram)
 
         sc_layout.addWidget(BodyLabel("Папка гри:", settings_card))
+        dir_layout = QHBoxLayout()
         self.entry_dir = LineEdit(settings_card)
         self.entry_dir.setText(self.game_path)
-        sc_layout.addWidget(self.entry_dir)
+        
+        self.btn_open_dir_settings = TransparentToolButton(FIF.FOLDER, settings_card)
+        self.btn_open_dir_settings.setToolTip("Відкрити у Провіднику")
+        self.btn_open_dir_settings.clicked.connect(self.open_game_folder)
+        
+        dir_layout.addWidget(self.entry_dir)
+        dir_layout.addWidget(self.btn_open_dir_settings)
+        sc_layout.addLayout(dir_layout)
 
         content_layout.addWidget(settings_card)
         content_layout.addStretch()
@@ -266,8 +314,7 @@ class K5LauncherApp(FluentWindow):
     def set_ui_state(self, enabled):
         self.username_entry.setEnabled(enabled)
         self.combo_version.setEnabled(enabled)
-        self.check_fabric.setEnabled(enabled)
-        self.combo_fabric_loader.setEnabled(enabled if self.check_fabric.isChecked() else False)
+        self.folder_button.setEnabled(enabled)
         self.navigationInterface.setEnabled(enabled)
 
     def load_versions_async(self):
@@ -279,44 +326,14 @@ class K5LauncherApp(FluentWindow):
 
     def on_versions_loaded(self, versions):
         self.combo_version.clear()
-        self.combo_version.addItems(versions)
-        if self.saved_version in versions:
+        combined_list = []
+        for v in versions:
+            combined_list.append(v)
+            combined_list.append(f"Fabric {v}")
+
+        self.combo_version.addItems(combined_list)
+        if self.saved_version in combined_list:
             self.combo_version.setCurrentText(self.saved_version)
-            
-        if self.check_fabric.isChecked():
-            self.load_fabric_loaders_async(self.combo_version.currentText())
-
-    def toggle_fabric(self, state):
-        is_checked = self.check_fabric.isChecked()
-        self.combo_fabric_loader.setEnabled(is_checked)
-        if is_checked:
-            self.load_fabric_loaders_async(self.combo_version.currentText())
-
-    def on_game_version_changed(self, version):
-        if self.check_fabric.isChecked() and version and version != "Синхронізація...":
-            self.load_fabric_loaders_async(version)
-
-    def load_fabric_loaders_async(self, game_version):
-        if not game_version or game_version == "Синхронізація...":
-            return
-        
-        def task():
-            try:
-                loaders = self.launcher_core.get_fabric_loaders(game_version)
-                self.signals.fabric_loaders_loaded.emit(loaders)
-            except Exception as e:
-                self.signals.error.emit(f"Помилка завантаження Fabric: {e}")
-
-        threading.Thread(target=task, daemon=True).start()
-
-    def on_fabric_loaders_loaded(self, loaders):
-        self.combo_fabric_loader.clear()
-        if loaders:
-            self.combo_fabric_loader.addItems(loaders)
-            if self.saved_fabric_loader in loaders:
-                self.combo_fabric_loader.setCurrentText(self.saved_fabric_loader)
-        else:
-            self.combo_fabric_loader.addItem("Fabric недоступний")
 
     def cancel_download(self):
         self.cancel_event.set()
@@ -337,6 +354,7 @@ class K5LauncherApp(FluentWindow):
         self.cancel_event.clear()
         
         self.start_button.hide()
+        self.folder_button.hide()
         self.cancel_button.show()
         self.cancel_button.setEnabled(True)
         
@@ -351,12 +369,10 @@ class K5LauncherApp(FluentWindow):
 
     def launch_game(self):
         username = self.username_entry.text().strip()
-        version = self.combo_version.currentText()
+        version_str = self.combo_version.currentText()
         java_path = self.entry_java.text().strip()
         ram_gb = self.entry_ram.text().strip()
         custom_dir = self.entry_dir.text().strip()
-        is_fabric = self.check_fabric.isChecked()
-        loader_version = self.combo_fabric_loader.currentText() if is_fabric else None
 
         if not username:
             self.signals.error.emit("Ім'я користувача не може бути порожнім.")
@@ -370,25 +386,37 @@ class K5LauncherApp(FluentWindow):
             self.launcher_core.assets_dir = os.path.join(self.launcher_core.root_dir, "assets")
             self.launcher_core.runtime_dir = os.path.join(self.launcher_core.root_dir, "runtime")
 
-            self.launcher_core.launch(
-                version=version, 
+            process = self.launcher_core.launch(
+                version=version_str, 
                 username=username, 
                 java_path=java_path, 
-                ram_gb=ram_gb, 
-                is_fabric=is_fabric,
-                loader_version=loader_version,
+                ram_gb=ram_gb,
                 progress_callback=self.on_progress
             )
+
+            if process:
+                time.sleep(3)
+                self.signals.hide_window.emit()
+                exit_code = process.wait()
+                self.signals.show_window.emit()
+
+                if exit_code != 0:
+                    self.signals.error.emit(f"Гра завершилася з помилкою (код виходу: {exit_code}).")
+                    return
+
             self.signals.finished.emit()
         except InterruptedError:
+            self.signals.show_window.emit()
             self.signals.canceled.emit()
         except Exception as e:
+            self.signals.show_window.emit()
             self.signals.error.emit(str(e))
 
     def on_launch_finished(self):
         self.set_ui_state(True)
         self.cancel_button.hide()
         self.start_button.show()
+        self.folder_button.show()
         
         self.progress_bar.hide()
         self.log_label.hide()

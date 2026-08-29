@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import urllib.request
 import subprocess
@@ -9,8 +10,8 @@ from concurrent.futures import ThreadPoolExecutor
 class MyLauncherCore:
     def __init__(self, root_dir=None):
         if not root_dir or root_dir.strip() == "":
-            local_appdata = os.environ.get("LOCALAPPDATA", os.path.expanduser("~"))
-            self.root_dir = os.path.abspath(os.path.join(local_appdata, "K5Launcher", "game"))
+            base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.abspath(".")
+            self.root_dir = os.path.abspath(os.path.join(base_dir, ".minecraft"))
         else:
             self.root_dir = os.path.abspath(root_dir)
             
@@ -25,13 +26,23 @@ class MyLauncherCore:
         os.makedirs(self.natives_dir, exist_ok=True)
         os.makedirs(self.assets_dir, exist_ok=True)
 
-    def download_portable_java(self, progress_callback=None):
-        if progress_callback:
-            progress_callback("Налаштування Java", "Завантаження портативного OpenJDK 21...", 0.01)
+    def download_portable_java(self, java_version=21, progress_callback=None):
+        if java_version == 8:
+            url = "https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u412-b08/OpenJDK8U-jre_x64_windows_hotspot_8u412b08.zip"
+            target_dir = os.path.join(self.runtime_dir, "java8")
+        else:
+            url = "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.3%2B9/OpenJDK21U-jre_x64_windows_hotspot_21.0.3_9.zip"
+            target_dir = os.path.join(self.runtime_dir, "java21")
 
-        url = "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.3%2B9/OpenJDK21U-jre_x64_windows_hotspot_21.0.3_9.zip"
-        zip_path = os.path.join(self.root_dir, "java_temp.zip")
-        temp_extract = os.path.join(self.root_dir, "java_extract")
+        java_exe = os.path.join(target_dir, "bin", "javaw.exe")
+        if os.path.exists(java_exe):
+            return java_exe
+
+        if progress_callback:
+            progress_callback("Налаштування Java", f"Завантаження OpenJDK {java_version}...", 0.01)
+
+        zip_path = os.path.join(self.root_dir, f"java{java_version}_temp.zip")
+        temp_extract = os.path.join(self.root_dir, f"java{java_version}_extract")
 
         try:
             req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
@@ -39,23 +50,20 @@ class MyLauncherCore:
                 shutil.copyfileobj(resp, out_file)
 
             if progress_callback:
-                progress_callback("Налаштування Java", "Розпаковка Java...", 0.02)
+                progress_callback("Налаштування Java", f"Розпаковка Java {java_version}...", 0.02)
 
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                 zip_ref.extractall(temp_extract)
 
             extracted_subfolders = [os.path.join(temp_extract, f) for f in os.listdir(temp_extract) if os.path.isdir(os.path.join(temp_extract, f))]
             if extracted_subfolders:
-                if os.path.exists(self.runtime_dir):
-                    shutil.rmtree(self.runtime_dir)
-                shutil.move(extracted_subfolders[0], self.runtime_dir)
+                if os.path.exists(target_dir):
+                    shutil.rmtree(target_dir)
+                shutil.move(extracted_subfolders[0], target_dir)
 
             os.remove(zip_path)
             shutil.rmtree(temp_extract, ignore_errors=True)
 
-            java_exe = os.path.join(self.runtime_dir, "bin", "javaw.exe")
-            if not os.path.exists(java_exe):
-                java_exe = os.path.join(self.runtime_dir, "bin", "java.exe")
             if os.path.exists(java_exe):
                 return java_exe
         except Exception:
@@ -63,61 +71,21 @@ class MyLauncherCore:
 
         return "javaw"
 
-    def detect_java_path(self, progress_callback=None):
-        local_javaw = os.path.join(self.runtime_dir, "bin", "javaw.exe")
-        local_java = os.path.join(self.runtime_dir, "bin", "java.exe")
+    def detect_java_path(self, mc_version="1.21", progress_callback=None):
+        try:
+            clean_ver = mc_version.replace("Fabric ", "").strip()
+            parts = clean_ver.split(".")
+            major_subver = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 21
+            required_java = 8 if major_subver < 17 else 21
+        except Exception:
+            required_java = 21
+
+        target_dir = os.path.join(self.runtime_dir, f"java{required_java}")
+        local_javaw = os.path.join(target_dir, "bin", "javaw.exe")
         if os.path.exists(local_javaw):
             return local_javaw
-        elif os.path.exists(local_java):
-            return local_java
 
-        java_home = os.environ.get("JAVA_HOME")
-        if java_home:
-            jh_javaw = os.path.join(java_home, "bin", "javaw.exe")
-            jh_exe = os.path.join(java_home, "bin", "java.exe")
-            if os.path.exists(jh_javaw):
-                return jh_javaw
-            elif os.path.exists(jh_exe):
-                return jh_exe
-
-        which_javaw = shutil.which("javaw")
-        if which_javaw and os.path.exists(which_javaw):
-            return which_javaw
-        which_java = shutil.which("java")
-        if which_java and os.path.exists(which_java):
-            return which_java
-
-        program_files = os.environ.get("ProgramFiles", "C:\\Program Files")
-        program_files_x86 = os.environ.get("ProgramFiles(x86)", "C:\\Program Files (x86)")
-        user_profile = os.environ.get("USERPROFILE", "")
-
-        possible_dirs = [
-            os.path.join(program_files, "Java"),
-            os.path.join(program_files, "Eclipse Adoptium"),
-            os.path.join(program_files, "Microsoft"),
-            os.path.join(program_files, "Amazon Corretto"),
-            os.path.join(program_files, "Zulu"),
-            os.path.join(program_files, "BellSoft"),
-            os.path.join(program_files_x86, "Java"),
-            os.path.join(user_profile, "AppData", "Local", "Programs", "Eclipse Adoptium"),
-            os.path.join(user_profile, "scoop", "apps")
-        ]
-
-        found_javas = []
-        for base_dir in possible_dirs:
-            if not os.path.exists(base_dir):
-                continue
-            for root, dirs, files in os.walk(base_dir):
-                if "javaw.exe" in files:
-                    found_javas.append(os.path.join(root, "javaw.exe"))
-                elif "java.exe" in files:
-                    found_javas.append(os.path.join(root, "java.exe"))
-
-        if found_javas:
-            found_javas.sort(reverse=True)
-            return found_javas[0]
-
-        return self.download_portable_java(progress_callback)
+        return self.download_portable_java(java_version=required_java, progress_callback=progress_callback)
 
     def get_release_versions(self):
         manifest_url = "https://launchermeta.mojang.com/mc/game/version_manifest.json"
@@ -128,7 +96,7 @@ class MyLauncherCore:
             releases = [v["id"] for v in global_manifest["versions"] if v["type"] == "release"]
             return releases
         except Exception:
-            return ["1.21.1", "1.20.1", "1.19.4", "1.16.5"]
+            return ["1.21.1", "1.20.1", "1.19.4", "1.16.5", "1.9", "1.3.2"]
 
     def get_fabric_loaders(self, game_version):
         loaders_url = f"https://meta.fabricmc.net/v2/versions/loader/{game_version}"
@@ -205,15 +173,25 @@ class MyLauncherCore:
         return full_url, local_path
 
     def download_client_and_libraries(self, version_data, version, progress_callback=None):
-        client_url = version_data["downloads"]["client"]["url"]
         client_jar_path = os.path.join(self.versions_dir, version, f"{version}.jar")
         
         if not os.path.exists(client_jar_path):
             if progress_callback: progress_callback("Завантаження client.jar...", "client.jar", 0.05)
-            urllib.request.urlretrieve(client_url, client_jar_path)
+            os.makedirs(os.path.dirname(client_jar_path), exist_ok=True)
+            
+            client_url = None
+            if "downloads" in version_data and "client" in version_data["downloads"]:
+                client_url = version_data["downloads"]["client"]["url"]
+            else:
+                client_url = f"https://s3.amazonaws.com/Minecraft.Download/versions/{version}/{version}.jar"
+
+            try:
+                urllib.request.urlretrieve(client_url, client_jar_path)
+            except Exception:
+                pass
 
         classpath_libs = []
-        libs_to_download = version_data["libraries"]
+        libs_to_download = version_data.get("libraries", [])
         total_libs = len(libs_to_download)
 
         for index, lib in enumerate(libs_to_download):
@@ -242,7 +220,7 @@ class MyLauncherCore:
                 if not os.path.exists(lib_path):
                     os.makedirs(os.path.dirname(lib_path), exist_ok=True)
                     try:
-                        percent = 0.1 + (index / total_libs) * 0.35
+                        percent = 0.1 + ((index + 1) / (total_libs or 1)) * 0.35
                         lib_name = os.path.basename(lib_path)
                         if progress_callback: 
                             progress_callback("Завантаження бібліотек", lib_name, percent)
@@ -252,28 +230,45 @@ class MyLauncherCore:
                             with open(lib_path, "wb") as f:
                                 f.write(response.read())
                     except Exception:
-                        continue
-                
+                        pass
                 classpath_libs.append(lib_path)
 
-            if "natives" in lib or "natives-windows" in lib.get("name", ""):
-                if lib_path and os.path.exists(lib_path) and lib_path.endswith(".jar"):
-                    try:
-                        with zipfile.ZipFile(lib_path, 'r') as zip_ref:
-                            for file in zip_ref.namelist():
-                                if file.endswith(".dll") or file.endswith(".so"):
-                                    zip_ref.extract(file, self.natives_dir)
-                    except Exception:
-                        pass
+            native_zip = None
+            if "downloads" in lib and "classifiers" in lib["downloads"]:
+                classifiers = lib["downloads"]["classifiers"]
+                if "natives-windows" in classifiers:
+                    nat_artifact = classifiers["natives-windows"]
+                    native_zip = os.path.join(self.libraries_dir, nat_artifact["path"])
+                    if not os.path.exists(native_zip):
+                        os.makedirs(os.path.dirname(native_zip), exist_ok=True)
+                        try:
+                            urllib.request.urlretrieve(nat_artifact["url"], native_zip)
+                        except Exception:
+                            pass
+
+            if not native_zip and lib_path and ("natives" in lib or "natives-windows" in lib.get("name", "")):
+                native_zip = lib_path
+
+            if native_zip and os.path.exists(native_zip) and native_zip.endswith(".jar"):
+                try:
+                    with zipfile.ZipFile(native_zip, 'r') as zip_ref:
+                        for file in zip_ref.namelist():
+                            if file.endswith(".dll") or file.endswith(".so"):
+                                zip_ref.extract(file, self.natives_dir)
+                except Exception:
+                    pass
 
         classpath_libs.append(client_jar_path)
         return classpath_libs
 
     def download_assets(self, version_data, progress_callback=None):
-        asset_info = version_data.get("assetIndex", {})
+        asset_info = version_data.get("assetIndex")
+        if not asset_info:
+            if progress_callback: progress_callback("Ресурси перевірено.", "Legacy версія", 0.95)
+            return
+
         asset_id = asset_info.get("id")
         asset_url = asset_info.get("url")
-
         if not asset_id or not asset_url:
             return
 
@@ -336,9 +331,13 @@ class MyLauncherCore:
             executor.map(download_single_file, download_queue)
 
     def launch(self, version, username, java_path=None, ram_gb="4", is_fabric=False, loader_version=None, progress_callback=None):
+        if version.startswith("Fabric "):
+            is_fabric = True
+            version = version.replace("Fabric ", "").strip()
+
         if not java_path or java_path.strip() == "" or not os.path.exists(java_path):
             if progress_callback: progress_callback("Конфігурація", "Пошук / Налаштування Java...", 0.01)
-            java_path = self.detect_java_path(progress_callback)
+            java_path = self.detect_java_path(mc_version=version, progress_callback=progress_callback)
 
         if java_path.endswith("java.exe"):
             javaw_path = java_path[:-8] + "javaw.exe"
@@ -367,23 +366,42 @@ class MyLauncherCore:
             main_class
         ]
 
-        minecraft_args = [
-            "--username", username,
-            "--version", f"Fabric-{version}" if is_fabric else version,
-            "--gameDir", self.root_dir,
-            "--assetsDir", self.assets_dir,
-            "--assetIndex", version_data["assetIndex"]["id"],
-            "--uuid", "00000000-0000-0000-0000-000000000000",
-            "--accessToken", "null",
-            "--userType", "legacy"
-        ]
+        if "minecraftArguments" in version_data:
+            raw_args = version_data["minecraftArguments"]
+            asset_index_id = version_data.get("assetIndex", {}).get("id", "legacy") if version_data.get("assetIndex") else "legacy"
+            
+            arg_map = {
+                "${auth_player_name}": username,
+                "${version_name}": version,
+                "${game_directory}": self.root_dir,
+                "${assets_root}": self.assets_dir,
+                "${assets_index_name}": asset_index_id,
+                "${auth_uuid}": "00000000-0000-0000-0000-000000000000",
+                "${auth_access_token}": "null",
+                "${user_type}": "legacy",
+                "${version_type}": "release",
+                "${auth_session}": "null"
+            }
+            minecraft_args = [arg_map.get(arg, arg) for arg in raw_args.split()]
+        else:
+            asset_index_id = version_data.get("assetIndex", {}).get("id", "legacy") if version_data.get("assetIndex") else "legacy"
+            minecraft_args = [
+                "--username", username,
+                "--version", f"Fabric-{version}" if is_fabric else version,
+                "--gameDir", self.root_dir,
+                "--assetsDir", self.assets_dir,
+                "--assetIndex", asset_index_id,
+                "--uuid", "00000000-0000-0000-0000-000000000000",
+                "--accessToken", "null",
+                "--userType", "legacy"
+            ]
 
         full_command = launch_args + minecraft_args
         if progress_callback: progress_callback("Запуск", "Відкриття Minecraft...", 1.0)
         
         creationflags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
 
-        subprocess.Popen(
+        return subprocess.Popen(
             full_command, 
             cwd=self.root_dir,
             creationflags=creationflags,
