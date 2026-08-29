@@ -1,16 +1,18 @@
-import os
 import json
-import urllib.request
-import subprocess
-import zipfile
+import os
 import shutil
+import subprocess
+import sys
+import urllib.request
+import zipfile
 from concurrent.futures import ThreadPoolExecutor
+
 
 class MyLauncherCore:
     def __init__(self, root_dir=None):
         if not root_dir or root_dir.strip() == "":
-            local_appdata = os.environ.get("LOCALAPPDATA", os.path.expanduser("~"))
-            self.root_dir = os.path.abspath(os.path.join(local_appdata, "K5Launcher", "game"))
+            base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.abspath(".")
+            self.root_dir = os.path.abspath(os.path.join(base_dir, ".minecraft"))
         else:
             self.root_dir = os.path.abspath(root_dir)
             
@@ -18,20 +20,65 @@ class MyLauncherCore:
         self.libraries_dir = os.path.join(self.root_dir, "libraries")
         self.natives_dir = os.path.join(self.root_dir, "natives")
         self.assets_dir = os.path.join(self.root_dir, "assets")
-        self.runtime_dir = os.path.join(self.root_dir, "runtime")
+
+        self.runtimes_base_dir = os.path.join(self.root_dir, "runtimes")
         
         os.makedirs(self.versions_dir, exist_ok=True)
         os.makedirs(self.libraries_dir, exist_ok=True)
         os.makedirs(self.natives_dir, exist_ok=True)
         os.makedirs(self.assets_dir, exist_ok=True)
+        os.makedirs(self.runtimes_base_dir, exist_ok=True)
 
-    def download_portable_java(self, progress_callback=None):
+    def _get_java_download_info(self, major_version):
+        java_sources = {
+            8: ("https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u412-b08/OpenJDK8U-jre_x64_windows_hotspot_8u412b08.zip", "jdk8u412-b08"),
+            11: ("https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.23%2B9/OpenJDK11U-jre_x64_windows_hotspot_11.0.23_9.zip", "jdk-11.0.23+9"),
+            17: ("https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.11%2B9/OpenJDK17U-jre_x64_windows_hotspot_17.0.11_9.zip", "jdk-17.0.11+9"),
+            21: ("https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.3%2B9/OpenJDK21U-jre_x64_windows_hotspot_21.0.3_9.zip", "jdk-21.0.3+9"),
+            25: ("https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25%2B36/OpenJDK25U-jre_x64_windows_hotspot_25_36.zip", "jdk-25+36")
+        }
+        return java_sources.get(major_version, java_sources[25])
+
+    def _check_java_version(self, java_path, required_major):
+        """Перевіряє, чи відповідає переданий шлях до Java потрібній мажорній версії."""
+        try:
+            creationflags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+            result = subprocess.run(
+                [java_path, "-version"],
+                capture_output=True,
+                text=True,
+                creationflags=creationflags,
+                timeout=3,
+                check=False
+            )
+            version_output = result.stderr + result.stdout
+            
+            if f'version "{required_major}.' in version_output or f'version "{required_major}' in version_output:
+                return True
+            if required_major == 8 and ("1.8." in version_output):
+                return True
+            if f'"{required_major}.' in version_output or f'"{required_major}+' in version_output:
+                return True
+        except (subprocess.SubprocessError, OSError, ValueError):
+            pass
+        return False
+
+    def download_portable_java(self, major_version=21, progress_callback=None):
+        target_runtime_dir = os.path.join(self.runtimes_base_dir, f"java_{major_version}")
+        
+        java_exe = os.path.join(target_runtime_dir, "bin", "javaw.exe")
+        if not os.path.exists(java_exe):
+            java_exe = os.path.join(target_runtime_dir, "bin", "java.exe")
+            
+        if os.path.exists(java_exe) and self._check_java_version(java_exe, major_version):
+            return java_exe
+
         if progress_callback:
-            progress_callback("Налаштування Java", "Завантаження портативного OpenJDK 21...", 0.01)
+            progress_callback("Налаштування Java", f"Завантаження портативного OpenJDK {major_version}...", 0.01)
 
-        url = "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.3%2B9/OpenJDK21U-jre_x64_windows_hotspot_21.0.3_9.zip"
-        zip_path = os.path.join(self.root_dir, "java_temp.zip")
-        temp_extract = os.path.join(self.root_dir, "java_extract")
+        url, _ = self._get_java_download_info(major_version)
+        zip_path = os.path.join(self.root_dir, f"java_temp_{major_version}.zip")
+        temp_extract = os.path.join(self.root_dir, f"java_extract_{major_version}")
 
         try:
             req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
@@ -39,53 +86,49 @@ class MyLauncherCore:
                 shutil.copyfileobj(resp, out_file)
 
             if progress_callback:
-                progress_callback("Налаштування Java", "Розпаковка Java...", 0.02)
+                progress_callback("Налаштування Java", f"Розпаковка Java {major_version}...", 0.02)
 
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                 zip_ref.extractall(temp_extract)
 
             extracted_subfolders = [os.path.join(temp_extract, f) for f in os.listdir(temp_extract) if os.path.isdir(os.path.join(temp_extract, f))]
             if extracted_subfolders:
-                if os.path.exists(self.runtime_dir):
-                    shutil.rmtree(self.runtime_dir)
-                shutil.move(extracted_subfolders[0], self.runtime_dir)
+                if os.path.exists(target_runtime_dir):
+                    shutil.rmtree(target_runtime_dir)
+                shutil.move(extracted_subfolders[0], target_runtime_dir)
 
             os.remove(zip_path)
             shutil.rmtree(temp_extract, ignore_errors=True)
 
-            java_exe = os.path.join(self.runtime_dir, "bin", "javaw.exe")
+            java_exe = os.path.join(target_runtime_dir, "bin", "javaw.exe")
             if not os.path.exists(java_exe):
-                java_exe = os.path.join(self.runtime_dir, "bin", "java.exe")
+                java_exe = os.path.join(target_runtime_dir, "bin", "java.exe")
+                
             if os.path.exists(java_exe):
                 return java_exe
-        except Exception:
+        except (urllib.error.URLError, zipfile.BadZipFile, OSError):
             pass
 
         return "javaw"
 
-    def detect_java_path(self, progress_callback=None):
-        local_javaw = os.path.join(self.runtime_dir, "bin", "javaw.exe")
-        local_java = os.path.join(self.runtime_dir, "bin", "java.exe")
-        if os.path.exists(local_javaw):
-            return local_javaw
-        elif os.path.exists(local_java):
-            return local_java
+    def detect_java_path(self, required_major=21, progress_callback=None):
+        target_runtime_dir = os.path.join(self.runtimes_base_dir, f"java_{required_major}")
+        for exe_name in ["javaw.exe", "java.exe"]:
+            local_path = os.path.join(target_runtime_dir, "bin", exe_name)
+            if os.path.exists(local_path) and self._check_java_version(local_path, required_major):
+                return local_path
 
         java_home = os.environ.get("JAVA_HOME")
         if java_home:
-            jh_javaw = os.path.join(java_home, "bin", "javaw.exe")
-            jh_exe = os.path.join(java_home, "bin", "java.exe")
-            if os.path.exists(jh_javaw):
-                return jh_javaw
-            elif os.path.exists(jh_exe):
-                return jh_exe
+            for exe_name in ["javaw.exe", "java.exe"]:
+                jh_path = os.path.join(java_home, "bin", exe_name)
+                if os.path.exists(jh_path) and self._check_java_version(jh_path, required_major):
+                    return jh_path
 
-        which_javaw = shutil.which("javaw")
-        if which_javaw and os.path.exists(which_javaw):
-            return which_javaw
-        which_java = shutil.which("java")
-        if which_java and os.path.exists(which_java):
-            return which_java
+        for cmd in ["javaw", "java"]:
+            which_path = shutil.which(cmd)
+            if which_path and os.path.exists(which_path) and self._check_java_version(which_path, required_major):
+                return which_path
 
         program_files = os.environ.get("ProgramFiles", "C:\\Program Files")
         program_files_x86 = os.environ.get("ProgramFiles(x86)", "C:\\Program Files (x86)")
@@ -100,24 +143,19 @@ class MyLauncherCore:
             os.path.join(program_files, "BellSoft"),
             os.path.join(program_files_x86, "Java"),
             os.path.join(user_profile, "AppData", "Local", "Programs", "Eclipse Adoptium"),
-            os.path.join(user_profile, "scoop", "apps")
         ]
 
-        found_javas = []
         for base_dir in possible_dirs:
             if not os.path.exists(base_dir):
                 continue
             for root, dirs, files in os.walk(base_dir):
-                if "javaw.exe" in files:
-                    found_javas.append(os.path.join(root, "javaw.exe"))
-                elif "java.exe" in files:
-                    found_javas.append(os.path.join(root, "java.exe"))
+                for exe_name in ["javaw.exe", "java.exe"]:
+                    if exe_name in files:
+                        candidate = os.path.join(root, exe_name)
+                        if self._check_java_version(candidate, required_major):
+                            return candidate
 
-        if found_javas:
-            found_javas.sort(reverse=True)
-            return found_javas[0]
-
-        return self.download_portable_java(progress_callback)
+        return self.download_portable_java(required_major, progress_callback)
 
     def get_release_versions(self):
         manifest_url = "https://launchermeta.mojang.com/mc/game/version_manifest.json"
@@ -127,8 +165,8 @@ class MyLauncherCore:
                 global_manifest = json.loads(response.read().decode())
             releases = [v["id"] for v in global_manifest["versions"] if v["type"] == "release"]
             return releases
-        except Exception:
-            return ["1.21.1", "1.20.1", "1.19.4", "1.16.5"]
+        except (urllib.error.URLError, json.JSONDecodeError, TimeoutError):
+            return ["1.21.1", "1.20.1", "1.19.4", "1.16.5", "1.12.2", "1.8.9"]
 
     def get_fabric_loaders(self, game_version):
         loaders_url = f"https://meta.fabricmc.net/v2/versions/loader/{game_version}"
@@ -137,7 +175,7 @@ class MyLauncherCore:
             with urllib.request.urlopen(req, timeout=5) as resp:
                 loaders = json.loads(resp.read().decode())
                 return [item["loader"]["version"] for item in loaders if "loader" in item]
-        except Exception:
+        except (urllib.error.URLError, json.JSONDecodeError, TimeoutError):
             return []
 
     def get_version_json(self, version):
@@ -147,27 +185,24 @@ class MyLauncherCore:
                 return json.load(f)
 
         manifest_url = "https://launchermeta.mojang.com/mc/game/version_manifest.json"
-        try:
-            req = urllib.request.Request(manifest_url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req) as response:
-                global_manifest = json.loads(response.read().decode())
+        req = urllib.request.Request(manifest_url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req) as response:
+            global_manifest = json.loads(response.read().decode())
+        
+        version_url = None
+        for v in global_manifest["versions"]:
+            if v["id"] == version:
+                version_url = v["url"]
+                break
+        
+        if not version_url:
+            raise ValueError(f"Версія {version} не знайдена в маніфесті Mojang!")
             
-            version_url = None
-            for v in global_manifest["versions"]:
-                if v["id"] == version:
-                    version_url = v["url"]
-                    break
-            
-            if not version_url:
-                raise ValueError(f"Версія {version} не знайдена в маніфесті Mojang!")
-                
-            os.makedirs(os.path.dirname(version_json_path), exist_ok=True)
-            urllib.request.urlretrieve(version_url, version_json_path)
-            
-            with open(version_json_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception as e:
-            raise e
+        os.makedirs(os.path.dirname(version_json_path), exist_ok=True)
+        urllib.request.urlretrieve(version_url, version_json_path)
+        
+        with open(version_json_path, "r", encoding="utf-8") as f:
+            return json.load(f)
 
     def get_fabric_version_json(self, game_version, loader_version=None):
         if not loader_version:
@@ -220,11 +255,8 @@ class MyLauncherCore:
             if "rules" in lib:
                 is_allowed = False
                 for rule in lib["rules"]:
-                    if rule["action"] == "allow":
-                        if "os" in rule and rule["os"]["name"] == "windows":
-                            is_allowed = True
-                        elif "os" not in rule:
-                            is_allowed = True
+                    if rule["action"] == "allow" and ("os" not in rule or ("os" in rule and rule["os"]["name"] == "windows")):
+                        is_allowed = True
                 if not is_allowed:
                     continue
 
@@ -248,23 +280,21 @@ class MyLauncherCore:
                             progress_callback("Завантаження бібліотек", lib_name, percent)
                         
                         req = urllib.request.Request(lib_url, headers={'User-Agent': 'Mozilla/5.0'})
-                        with urllib.request.urlopen(req, timeout=10) as response:
-                            with open(lib_path, "wb") as f:
-                                f.write(response.read())
-                    except Exception:
+                        with urllib.request.urlopen(req, timeout=10) as response, open(lib_path, "wb") as f:
+                            f.write(response.read())
+                    except (urllib.error.URLError, TimeoutError, OSError):
                         continue
                 
                 classpath_libs.append(lib_path)
 
-            if "natives" in lib or "natives-windows" in lib.get("name", ""):
-                if lib_path and os.path.exists(lib_path) and lib_path.endswith(".jar"):
-                    try:
-                        with zipfile.ZipFile(lib_path, 'r') as zip_ref:
-                            for file in zip_ref.namelist():
-                                if file.endswith(".dll") or file.endswith(".so"):
-                                    zip_ref.extract(file, self.natives_dir)
-                    except Exception:
-                        pass
+            if ("natives" in lib or "natives-windows" in lib.get("name", "")) and lib_path and os.path.exists(lib_path) and lib_path.endswith(".jar"):
+                try:
+                    with zipfile.ZipFile(lib_path, 'r') as zip_ref:
+                        for file in zip_ref.namelist():
+                            if file.endswith((".dll", ".so")):
+                                zip_ref.extract(file, self.natives_dir)
+                except (zipfile.BadZipFile, OSError):
+                    pass
 
         classpath_libs.append(client_jar_path)
         return classpath_libs
@@ -317,10 +347,9 @@ class MyLauncherCore:
             try:
                 os.makedirs(folder_path, exist_ok=True)
                 req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-                with urllib.request.urlopen(req, timeout=7) as response:
-                    with open(file_path, "wb") as f:
-                        f.write(response.read())
-            except Exception:
+                with urllib.request.urlopen(req, timeout=7) as response, open(file_path, "wb") as f:
+                    f.write(response.read())
+            except (urllib.error.URLError, TimeoutError, OSError):
                 pass
             finally:
                 downloaded_count += 1
@@ -336,14 +365,9 @@ class MyLauncherCore:
             executor.map(download_single_file, download_queue)
 
     def launch(self, version, username, java_path=None, ram_gb="4", is_fabric=False, loader_version=None, progress_callback=None):
-        if not java_path or java_path.strip() == "" or not os.path.exists(java_path):
-            if progress_callback: progress_callback("Конфігурація", "Пошук / Налаштування Java...", 0.01)
-            java_path = self.detect_java_path(progress_callback)
-
-        if java_path.endswith("java.exe"):
-            javaw_path = java_path[:-8] + "javaw.exe"
-            if os.path.exists(javaw_path):
-                java_path = javaw_path
+        if version.startswith("Fabric "):
+            is_fabric = True
+            version = version.replace("Fabric ", "").strip()
 
         if progress_callback: progress_callback("Маніфест версії", "Отримання конфігурації...", 0.02)
         
@@ -351,6 +375,23 @@ class MyLauncherCore:
             version_data = self.get_fabric_version_json(version, loader_version)
         else:
             version_data = self.get_version_json(version)
+
+        java_version_info = version_data.get("javaVersion", {})
+        target_java_major = java_version_info.get("majorVersion", 8)
+
+        target_java_major = min(target_java_major, 25)
+
+        if java_path and java_path.strip() != "" and os.path.exists(java_path) and not self._check_java_version(java_path, target_java_major):
+            java_path = None 
+
+        if not java_path or java_path.strip() == "" or not os.path.exists(java_path):
+            if progress_callback: progress_callback("Конфігурація", f"Пошук / Налаштування Java {target_java_major}...", 0.01)
+            java_path = self.detect_java_path(target_java_major, progress_callback)
+
+        if java_path.endswith("java.exe"):
+            javaw_path = java_path[:-8] + "javaw.exe"
+            if os.path.exists(javaw_path):
+                java_path = javaw_path
         
         classpath_libs = self.download_client_and_libraries(version_data, version, progress_callback)
         self.download_assets(version_data, progress_callback)
@@ -375,6 +416,7 @@ class MyLauncherCore:
             "--assetIndex", version_data["assetIndex"]["id"],
             "--uuid", "00000000-0000-0000-0000-000000000000",
             "--accessToken", "null",
+            "--userProperties", "{}",
             "--userType", "legacy"
         ]
 
@@ -383,10 +425,14 @@ class MyLauncherCore:
         
         creationflags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
 
-        subprocess.Popen(
-            full_command, 
-            cwd=self.root_dir,
-            creationflags=creationflags,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
+        log_path = os.path.join(self.root_dir, "launcher_error.log")
+        with open(log_path, "w", encoding="utf-8") as log_file:
+            process = subprocess.Popen(
+                full_command, 
+                cwd=self.root_dir,
+                creationflags=creationflags,
+                stdout=log_file,
+                stderr=log_file
+            )
+
+        return process

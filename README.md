@@ -58,7 +58,7 @@ cd k5launcher
 
 2. Install required dependencies:
 ```bash
-pip install PyQt6 QFluentWidgets
+pip install -r requirements.txt
 
 ```
 

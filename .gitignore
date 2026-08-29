@@ -11,6 +11,7 @@ installer_output/
 gui.spec
 
 MyMinecraftLauncher/
+.minecraft
 k5launcher_config.json
 runtime/
 java_temp.zip
@@ -20,3 +21,5 @@ java_extract/
 .idea/
 Thumbs.db
 .DS_Store
+
+.ruff_cache

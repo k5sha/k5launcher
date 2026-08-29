@@ -1,2 +1,2 @@
 PyQt6>=6.5.0
-QFluentWidgets>=1.4.0
+PyQt6-Fluent-Widgets>=1.4.0
