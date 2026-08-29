@@ -34,4 +34,4 @@ jobs:
           uses: actions/upload-artifact@v4
           with:
             name: K5Launcher-Installer
-            path: installer_output/K5Launcher_Setup.exe
+            path: installer_output/k5launcher-setup.exe
