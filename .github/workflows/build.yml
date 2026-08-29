@@ -2,6 +2,27 @@ name: Build Installer
 on: 
     push
 jobs:
+  compile:
+    name: Compile
+    runs-on: windows-latest
+
+    steps:
+        - name: Checkout Repository
+          uses: actions/checkout@v4
+
+        - name: Set up Python
+          uses: actions/setup-python@v5
+          with:
+            python-version: '3.11'
+            cache: 'pip'
+
+        - name: Install Dependencies
+          run: |
+            python -m pip install --upgrade pip
+            pip install pyinstaller
+
+        - name: Run PyInstaller
+          run: pyinstaller --noconfirm K5Launcher.spec
   build:
     name: Build the Inno Setup Installer
     runs-on: windows-latest
