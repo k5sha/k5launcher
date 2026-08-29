@@ -23,7 +23,9 @@ jobs:
 
         - name: Run PyInstaller
           run: pyinstaller --noconfirm K5Launcher.spec
+
   build:
+    needs: compile
     name: Build the Inno Setup Installer
     runs-on: windows-latest
     steps:
