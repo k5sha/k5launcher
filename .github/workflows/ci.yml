@@ -31,7 +31,7 @@ jobs:
 
       - name: Smoke Test (Validate Core & GUI Imports)
         run: |
-          python -c "import src.core; import src.gui; print('Modules imported successfully!')"
+          python -c "import src.core.launcher; import src.ui.app; print('Modules imported successfully!')"
 
       - name: Dry-Run PyInstaller Spec Build
         run: pyinstaller --noconfirm --log-level WARN K5Launcher.spec
