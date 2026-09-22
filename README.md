@@ -25,18 +25,41 @@
 ## Project Structure
 
 ```text
-k5launcher/
-├── assets/                  # Icons and visual assets
-│   ├── logo.ico
-│   └── logo.png
-├── src/                     # Source code
+E:\supo\
+├── assets/                          # Icons and logos
+├── src/
 │   ├── __init__.py
-│   ├── core.py              # Download engine & Minecraft process launcher
-│   └── gui.py               # PyQt6 Fluent UI interface
-├── .gitignore
-├── K5Launcher.iss           # Inno Setup compilation script
-└── K5Launcher.spec          # PyInstaller bundle specification
-
+│   ├── main.py                      # Application entry point
+│   │
+│   ├── config/                      # Configuration and settings manager
+│   │   ├── __init__.py
+│   │   └── settings.py
+│   │
+│   ├── core/                        # Launcher business logic (non-UI)
+│   │   ├── __init__.py
+│   │   ├── java.py                  # Java JRE discovery, validation, and download
+│   │   ├── versions.py              # Mojang, Fabric manifest management
+│   │   ├── downloader.py            # Libraries, natives, and assets downloader
+│   │   └── launcher.py              # Argument builder and Minecraft process runner
+│   │
+│   ├── ui/                          # Graphical interface (PyQt6 / QFluentWidgets)
+│   │   ├── __init__.py
+│   │   ├── signals.py               # Qt signals for threading
+│   │   ├── app.py                   # Main FluentWindow interface
+│   │   └── views/                   # Views / Pages
+│   │       ├── __init__.py
+│   │       ├── home_view.py         # Home view (Launch button, Username, Version selector)
+│   │       └── settings_view.py     # Settings view
+│   │
+│   └── utils/                       # Helper utilities
+│       ├── __init__.py
+│       ├── helpers.py               # Path resolution helpers (resource_path, get_app_dir)
+│       └── updater.py               # GitHub API update checker
+│
+├── K5Launcher.iss                   # Inno Setup compilation script
+├── K5Launcher.spec                  # PyInstaller bundle specification
+├── requirements.txt                 # Project dependencies
+└── README.md                        
 ```
 
 ## Local Development
@@ -65,7 +88,7 @@ pip install -r requirements.txt
 
 3. Run the application:
 ```bash
-python -m src.gui
+python -m src.main
 
 ```
 
@@ -87,4 +110,4 @@ pyinstaller --noconfirm K5Launcher.spec
 ```
 
 
-*The compiled installer will be available at `installer_output/K5Launcher_Setup.exe`.*
+*The compiled installer will be available at `installer_output/k5launcher_setup.exe`.*

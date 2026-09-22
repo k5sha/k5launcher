@@ -1,5 +1,5 @@
 #define MyAppName "K5Launcher"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.2"
 #define MyAppPublisher "k5sha"
 #define MyAppExeName "K5Launcher.exe"
 
@@ -9,11 +9,13 @@ AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={localappdata}\{#MyAppName}
+DisableDirPage=no
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=installer_output
-OutputBaseFilename=K5Launcher_Setup
+OutputBaseFilename=k5launcher-setup
 SetupIconFile=assets\logo.ico
+UsePreviousAppDir=no
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -26,7 +28,8 @@ Name: "ukrainian"; MessagesFile: "compiler:Languages\Ukrainian.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: checkedonce
 
 [Files]
-Source: "dist\K5Launcher\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\K5Launcher\K5Launcher.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\K5Launcher\_internal\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
