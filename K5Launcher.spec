@@ -1,13 +1,32 @@
-import os
+# -*- mode: python ; coding: utf-8 -*-
 
 block_cipher = None
 
 a = Analysis(
-    ['src/gui.py'],
+    ['src/main.py'],
     pathex=['.'],
     binaries=[],
-    datas=[('assets/logo.png', 'assets')],
-    hiddenimports=['src.core', 'qfluentwidgets', 'PyQt6'],
+    datas=[
+        ('assets', 'assets'), 
+    ],
+    hiddenimports=[
+        'src.config.settings',
+        'src.core.java',
+        'src.core.versions',
+        'src.core.downloader',
+        'src.core.launcher',
+        'src.ui.signals',
+        'src.ui.app',
+        'src.ui.views.home_view',
+        'src.ui.views.settings_view',
+        'src.utils.helpers',
+        'src.utils.updater',
+        'qfluentwidgets',
+        'PyQt6',
+        'PyQt6.QtCore',
+        'PyQt6.QtGui',
+        'PyQt6.QtWidgets',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -17,6 +36,7 @@ a = Analysis(
     cipher=block_cipher,
     noarchive=False,
 )
+
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 exe = EXE(
@@ -30,7 +50,7 @@ exe = EXE(
     strip=False,
     upx=True,
     console=False,
-    icon='assets/logo.ico'
+    icon='assets/logo.ico',
 )
 
 coll = COLLECT(
