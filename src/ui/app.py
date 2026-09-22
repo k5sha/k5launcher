@@ -1,12 +1,21 @@
+import json
 import os
 import subprocess
 import threading
 import time
 import urllib.error
+
 from PyQt6.QtCore import Qt, QUrl
 from PyQt6.QtGui import QDesktopServices, QIcon
-from qfluentwidgets import FluentWindow, InfoBar, InfoBarPosition, Theme, setTheme, setThemeColor
 from qfluentwidgets import FluentIcon as FIF
+from qfluentwidgets import (
+    FluentWindow,
+    InfoBar,
+    InfoBarPosition,
+    Theme,
+    setTheme,
+    setThemeColor,
+)
 
 from src.config.settings import ConfigManager
 from src.core.launcher import MyLauncherCore
@@ -16,37 +25,38 @@ from src.ui.views.settings_view import SettingsInterface
 from src.utils.helpers import resource_path
 from src.utils.updater import check_for_updates
 
+
 class K5LauncherApp(FluentWindow):
     def __init__(self):
         super().__init__()
-        
-        setThemeColor('#7b61ff')
-        
+
+        setThemeColor("#7b61ff")
+
         app_icon = resource_path("assets/logo.ico")
         if os.path.exists(app_icon):
             self.setWindowIcon(QIcon(app_icon))
-        
+
         self.config = ConfigManager()
         self.cancel_event = threading.Event()
         self.launcher_core = MyLauncherCore(root_dir=self.config.game_path)
-        
+
         self.signals = ProgressSignal()
         self.setup_signals()
 
         self.setWindowTitle("K5Launcher")
         self.resize(850, 620)
-        
+
         self.home_interface = HomeInterface(self)
         self.settings_interface = SettingsInterface(self)
-        
+
         self.addSubInterface(self.home_interface, FIF.HOME, "Головна")
         self.addSubInterface(self.settings_interface, FIF.SETTING, "Налаштування")
-        
+
         self.load_values_to_ui()
         self.bind_events()
-        
+
         setTheme(Theme.DARK if self.config.dark_theme else Theme.LIGHT)
-        
+
         threading.Thread(target=self.load_versions_async, daemon=True).start()
         threading.Thread(target=self.check_updates_async, daemon=True).start()
 
@@ -63,7 +73,7 @@ class K5LauncherApp(FluentWindow):
     def load_values_to_ui(self):
         # Home page
         self.home_interface.username_entry.setText(self.config.username)
-        
+
         # Settings page
         self.settings_interface.theme_switch.setChecked(self.config.dark_theme)
         self.settings_interface.entry_java.setText(self.config.java_path)
@@ -75,7 +85,9 @@ class K5LauncherApp(FluentWindow):
         self.home_interface.folder_button.clicked.connect(self.open_game_folder)
         self.home_interface.cancel_button.clicked.connect(self.cancel_download)
 
-        self.settings_interface.btn_open_dir_settings.clicked.connect(self.open_game_folder)
+        self.settings_interface.btn_open_dir_settings.clicked.connect(
+            self.open_game_folder
+        )
         self.settings_interface.theme_switch.checkedChanged.connect(self.toggle_theme)
 
     def save_current_config(self):
@@ -85,7 +97,7 @@ class K5LauncherApp(FluentWindow):
             ram=self.settings_interface.entry_ram.text(),
             username=self.home_interface.username_entry.text(),
             last_version=self.home_interface.combo_version.currentText(),
-            dark_theme=self.config.dark_theme
+            dark_theme=self.config.dark_theme,
         )
 
     def check_updates_async(self):
@@ -95,19 +107,19 @@ class K5LauncherApp(FluentWindow):
 
     def on_update_available(self, version, url):
         InfoBar.info(
-            title='Доступне оновлення!',
-            content=f'Вийшла нова версія {version}. Оновіть додаток на GitHub.',
+            title="Доступне оновлення!",
+            content=f"Вийшла нова версія {version}. Оновіть додаток на GitHub.",
             orient=Qt.Orientation.Horizontal,
             isClosable=True,
             position=InfoBarPosition.TOP_RIGHT,
             duration=10000,
-            parent=self
+            parent=self,
         )
 
     def open_game_folder(self):
         path = os.path.abspath(self.settings_interface.entry_dir.text().strip())
         os.makedirs(path, exist_ok=True)
-        if os.name == 'nt':
+        if os.name == "nt":
             os.startfile(path)
         else:
             QDesktopServices.openUrl(QUrl.fromLocalFile(path))
@@ -127,7 +139,13 @@ class K5LauncherApp(FluentWindow):
         try:
             versions = self.launcher_core.get_release_versions()
             self.signals.versions_loaded.emit(versions)
-        except (urllib.error.URLError, Exception) as e:
+        except (
+            urllib.error.URLError,
+            json.JSONDecodeError,
+            TimeoutError,
+            OSError,
+            ValueError,
+        ) as e:
             self.signals.error.emit(f"Помилка завантаження версій: {e}")
 
     def on_versions_loaded(self, versions):
@@ -158,19 +176,19 @@ class K5LauncherApp(FluentWindow):
     def start_launch_thread(self):
         self.save_current_config()
         self.cancel_event.clear()
-        
+
         self.home_interface.start_button.hide()
         self.home_interface.folder_button.hide()
         self.home_interface.cancel_button.show()
         self.home_interface.cancel_button.setEnabled(True)
-        
+
         self.home_interface.progress_bar.show()
         self.home_interface.log_label.show()
         self.home_interface.progress_bar.setValue(0)
         self.home_interface.log_label.setText("Ініціалізація...")
-        
+
         self.set_ui_state(False)
-        
+
         threading.Thread(target=self.launch_game, daemon=True).start()
 
     def launch_game(self):
@@ -188,11 +206,11 @@ class K5LauncherApp(FluentWindow):
             self.launcher_core.update_root_dir(custom_dir)
 
             process = self.launcher_core.launch(
-                version=version_str, 
-                username=username, 
-                java_path=java_path, 
+                version=version_str,
+                username=username,
+                java_path=java_path,
                 ram_gb=ram_gb,
-                progress_callback=self.on_progress
+                progress_callback=self.on_progress,
             )
 
             if process:
@@ -202,7 +220,9 @@ class K5LauncherApp(FluentWindow):
                 self.signals.show_window.emit()
 
                 if exit_code != 0:
-                    self.signals.error.emit(f"Гра завершилася з помилкою (код виходу: {exit_code}).")
+                    self.signals.error.emit(
+                        f"Гра завершилася з помилкою (код виходу: {exit_code})."
+                    )
                     return
 
             self.signals.finished.emit()
@@ -218,30 +238,30 @@ class K5LauncherApp(FluentWindow):
         self.home_interface.cancel_button.hide()
         self.home_interface.start_button.show()
         self.home_interface.folder_button.show()
-        
+
         self.home_interface.progress_bar.hide()
         self.home_interface.log_label.hide()
 
     def on_launch_canceled(self):
         self.on_launch_finished()
         InfoBar.warning(
-            title='Відмінено',
+            title="Відмінено",
             content="Завантаження перервано користувачем",
             orient=Qt.Orientation.Horizontal,
             isClosable=True,
             position=InfoBarPosition.TOP_RIGHT,
             duration=3000,
-            parent=self
+            parent=self,
         )
 
     def on_launch_error(self, err_msg):
         self.on_launch_finished()
         InfoBar.error(
-            title='Помилка запуску',
+            title="Помилка запуску",
             content=err_msg,
             orient=Qt.Orientation.Horizontal,
             isClosable=True,
             position=InfoBarPosition.TOP_RIGHT,
             duration=5000,
-            parent=self
+            parent=self,
         )

@@ -1,4 +1,5 @@
 import os
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
@@ -14,8 +15,10 @@ from qfluentwidgets import (
     TransparentToolButton,
 )
 from qfluentwidgets import FluentIcon as FIF
+
 from src.utils.helpers import resource_path
 from src.utils.updater import CURRENT_VERSION
+
 
 class HomeInterface(QWidget):
     def __init__(self, parent=None):
@@ -26,7 +29,7 @@ class HomeInterface(QWidget):
     def init_ui(self):
         main_layout = QHBoxLayout(self)
         main_layout.addStretch(1)
-        
+
         content_layout = QVBoxLayout()
         content_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         content_layout.setSpacing(14)
@@ -36,13 +39,18 @@ class HomeInterface(QWidget):
             self.logo_label = QLabel(self)
             self.logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             pixmap = QPixmap(logo_path).scaled(
-                110, 110, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
+                110,
+                110,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
             )
             self.logo_label.setPixmap(pixmap)
             content_layout.addWidget(self.logo_label)
 
         self.title_label = TitleLabel("K5LAUNCHER", self)
-        self.title_label.setStyleSheet("font-size: 32px; font-weight: 800; letter-spacing: 2px;")
+        self.title_label.setStyleSheet(
+            "font-size: 32px; font-weight: 800; letter-spacing: 2px;"
+        )
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         content_layout.addWidget(self.title_label)
 
@@ -72,7 +80,9 @@ class HomeInterface(QWidget):
         self.progress_bar.setFixedWidth(380)
         self.progress_bar.setValue(0)
         self.progress_bar.hide()
-        content_layout.addWidget(self.progress_bar, alignment=Qt.AlignmentFlag.AlignCenter)
+        content_layout.addWidget(
+            self.progress_bar, alignment=Qt.AlignmentFlag.AlignCenter
+        )
 
         btn_layout = QHBoxLayout()
         btn_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -93,9 +103,11 @@ class HomeInterface(QWidget):
         btn_layout.addWidget(self.cancel_button)
 
         content_layout.addLayout(btn_layout)
-        
+
         content_layout.addSpacing(6)
-        version_label = CaptionLabel(f"K5Launcher {CURRENT_VERSION} • crafted with 💜 by k5sha", self)
+        version_label = CaptionLabel(
+            f"K5Launcher {CURRENT_VERSION} • crafted with 💜 by k5sha", self
+        )
         version_label.setStyleSheet("color: #8e8e93; font-weight: 500;")
         version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         content_layout.addWidget(version_label)

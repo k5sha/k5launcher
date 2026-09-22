@@ -6,7 +6,9 @@ import zipfile
 
 
 class AssetDownloader:
-    def __init__(self, versions_dir: str, libraries_dir: str, natives_dir: str, assets_dir: str):
+    def __init__(
+        self, versions_dir: str, libraries_dir: str, natives_dir: str, assets_dir: str
+    ):
         self.versions_dir = versions_dir
         self.libraries_dir = libraries_dir
         self.natives_dir = natives_dir
@@ -39,22 +41,26 @@ class AssetDownloader:
             if action == "allow":
                 if not os_rule or os_name == "windows":
                     allowed = True
-            elif action == "disallow":
-                if os_name == "windows":
-                    allowed = False
+            elif action == "disallow" and os_name == "windows":
+                allowed = False
         return allowed
 
     def _extract_natives(self, jar_path: str):
         if not os.path.exists(jar_path):
             return
         try:
-            with zipfile.ZipFile(jar_path, 'r') as zip_ref:
+            with zipfile.ZipFile(jar_path, "r") as zip_ref:
                 for file in zip_ref.namelist():
-                    if file.endswith((".dll", ".so", ".dylib")) and not file.startswith("META-INF"):
+                    if file.endswith((".dll", ".so", ".dylib")) and not file.startswith(
+                        "META-INF"
+                    ):
                         filename = os.path.basename(file)
                         if filename:
                             target_file = os.path.join(self.natives_dir, filename)
-                            with zip_ref.open(file) as source, open(target_file, "wb") as target:
+                            with (
+                                zip_ref.open(file) as source,
+                                open(target_file, "wb") as target,
+                            ):
                                 target.write(source.read())
         except (zipfile.BadZipFile, OSError):
             pass
@@ -63,13 +69,18 @@ class AssetDownloader:
         if not os.path.exists(local_path):
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
             try:
-                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-                with urllib.request.urlopen(req, timeout=10) as response, open(local_path, "wb") as f:
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                with (
+                    urllib.request.urlopen(req, timeout=10) as response,
+                    open(local_path, "wb") as f,
+                ):
                     f.write(response.read())
             except (urllib.error.URLError, TimeoutError, OSError):
                 pass
 
-    def download_client_and_libraries(self, version_data: dict, version: str, progress_callback=None) -> list:
+    def download_client_and_libraries(
+        self, version_data: dict, version: str, progress_callback=None
+    ) -> list:
         client_url = version_data["downloads"]["client"]["url"]
         client_jar_path = os.path.join(self.versions_dir, version, f"{version}.jar")
 
@@ -94,29 +105,43 @@ class AssetDownloader:
                 lib_path = os.path.join(self.libraries_dir, artifact["path"])
                 lib_url = artifact["url"]
                 if progress_callback:
-                    progress_callback("Завантаження бібліотек", os.path.basename(lib_path), percent)
+                    progress_callback(
+                        "Завантаження бібліотек", os.path.basename(lib_path), percent
+                    )
                 self._download_file(lib_url, lib_path)
                 classpath_libs.append(lib_path)
             elif "name" in lib and "downloads" not in lib:
                 lib_url, lib_path = self._parse_maven_library(lib)
                 if lib_url and lib_path:
                     if progress_callback:
-                        progress_callback("Завантаження бібліотек", os.path.basename(lib_path), percent)
+                        progress_callback(
+                            "Завантаження бібліотек",
+                            os.path.basename(lib_path),
+                            percent,
+                        )
                     self._download_file(lib_url, lib_path)
                     classpath_libs.append(lib_path)
 
             if "natives" in lib:
                 native_key = lib["natives"].get("windows")
                 if native_key:
-                    native_key = native_key.replace("${arch}", "64" if sys.maxsize > 2**32 else "32")
+                    native_key = native_key.replace(
+                        "${arch}", "64" if sys.maxsize > 2**32 else "32"
+                    )
                     if "downloads" in lib and "classifiers" in lib["downloads"]:
                         classifiers = lib["downloads"]["classifiers"]
                         if native_key in classifiers:
                             native_artifact = classifiers[native_key]
-                            native_path = os.path.join(self.libraries_dir, native_artifact["path"])
+                            native_path = os.path.join(
+                                self.libraries_dir, native_artifact["path"]
+                            )
                             native_url = native_artifact["url"]
                             if progress_callback:
-                                progress_callback("Завантаження нативів", os.path.basename(native_path), percent)
+                                progress_callback(
+                                    "Завантаження нативів",
+                                    os.path.basename(native_path),
+                                    percent,
+                                )
                             self._download_file(native_url, native_path)
                             self._extract_natives(native_path)
 
@@ -160,7 +185,9 @@ class AssetDownloader:
             file_path = os.path.join(folder_path, file_hash)
 
             if not os.path.exists(file_path):
-                url = f"https://resources.download.minecraft.net/{two_chars}/{file_hash}"
+                url = (
+                    f"https://resources.download.minecraft.net/{two_chars}/{file_hash}"
+                )
                 download_queue.append((url, folder_path, file_path, name))
 
         if not download_queue:
@@ -176,8 +203,11 @@ class AssetDownloader:
             url, folder_path, file_path, asset_name = task
             try:
                 os.makedirs(folder_path, exist_ok=True)
-                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-                with urllib.request.urlopen(req, timeout=7) as response, open(file_path, "wb") as f:
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                with (
+                    urllib.request.urlopen(req, timeout=7) as response,
+                    open(file_path, "wb") as f,
+                ):
                     f.write(response.read())
             except (urllib.error.URLError, TimeoutError, OSError):
                 pass
@@ -188,9 +218,10 @@ class AssetDownloader:
                     progress_callback(
                         f"Ресурси: {downloaded_count}/{total_tasks}",
                         os.path.basename(asset_name),
-                        percent
+                        percent,
                     )
 
         from concurrent.futures import ThreadPoolExecutor
+
         with ThreadPoolExecutor(max_workers=16) as executor:
             executor.map(download_single_file, download_queue)

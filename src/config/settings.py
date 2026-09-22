@@ -1,12 +1,14 @@
 import json
 import os
+
 from src.utils.helpers import get_app_dir
+
 
 class ConfigManager:
     def __init__(self, filename="k5launcher_config.json"):
         self.app_dir = get_app_dir()
         self.config_file = os.path.join(self.app_dir, filename)
-        
+
         self.default_game_dir = os.path.join(self.app_dir, ".minecraft")
         self.game_path = self.default_game_dir
         self.java_path = ""
@@ -31,7 +33,15 @@ class ConfigManager:
             except (json.JSONDecodeError, OSError):
                 pass
 
-    def save(self, game_path: str, java_path: str, ram: str, username: str, last_version: str, dark_theme: bool):
+    def save(
+        self,
+        game_path: str,
+        java_path: str,
+        ram: str,
+        username: str,
+        last_version: str,
+        dark_theme: bool,
+    ):
         self.game_path = game_path.strip()
         self.java_path = java_path.strip()
         self.ram = ram.strip()
@@ -45,7 +55,7 @@ class ConfigManager:
             "ram": self.ram,
             "username": self.username,
             "last_version": self.last_version,
-            "dark_theme": self.dark_theme
+            "dark_theme": self.dark_theme,
         }
         try:
             os.makedirs(os.path.dirname(self.config_file), exist_ok=True)
