@@ -55,7 +55,19 @@ E:\supo\
 │       ├── __init__.py
 │       ├── helpers.py               # Path resolution helpers (resource_path, get_app_dir)
 │       └── updater.py               # GitHub API update checker
+├── tests/                           # Complete test suite
+│   ├── __init__.py
+│   ├── test_vanilla.py             # Vanilla loader unit tests
+│   ├── test_fabric.py              # Fabric loader unit tests
+│   ├── test_optifine.py            # OptiFine loader unit tests
+│   ├── test_downloader.py          # Assets & libraries downloader tests
+│   ├── test_java.py                # JRE detection & download tests
+│   ├── test_versions.py            # Version manager tests
+│   ├── test_launcher.py            # Process launcher tests
+│   ├── test_helpers.py             # PyInstaller & path helper tests
+│   ├── test_updater.py             # GitHub release checker tests
 │
+├── pytest.ini                       # Pytest configuration (pythonpath, testpaths)
 ├── K5Launcher.iss                   # Inno Setup compilation script
 ├── K5Launcher.spec                  # PyInstaller bundle specification
 ├── requirements.txt                 # Project dependencies
