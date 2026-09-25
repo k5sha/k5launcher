@@ -33,7 +33,7 @@ def test_prepare_version_success(version_manager, mocker):
     mock_loader.prepare.return_value = ({"id": "1.20.1"}, [], "1.20.1")
     version_manager.loaders["Vanilla"] = mock_loader
 
-    data, extra_args, label = version_manager.prepare_version("1.20.1", "/libraries")
+    data, _, _ = version_manager.prepare_version("1.20.1", "/libraries")
     
     assert data == {"id": "1.20.1"}
     mock_loader.prepare.assert_called_once()

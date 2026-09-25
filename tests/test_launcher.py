@@ -61,7 +61,7 @@ def test_launch(launcher_core, mocker, tmp_path):
         launcher_core.java_manager, "check_java_version", return_value=True
     )
 
-    proc = launcher_core.launch(
+    _ = launcher_core.launch(
         version="1.20.1",
         username="TestPlayer",
         java_path=str(java_file),
@@ -70,7 +70,7 @@ def test_launch(launcher_core, mocker, tmp_path):
     )
 
     mock_popen.assert_called_once()
-    args, kwargs = mock_popen.call_args
+    args, _ = mock_popen.call_args
     command = args[0]
 
     assert command[0] == str(java_file)
