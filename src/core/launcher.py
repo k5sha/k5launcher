@@ -50,29 +50,35 @@ class MyLauncherCore:
     def get_release_versions(self):
         return self.version_manager.get_release_versions()
 
+    def get_selectable_versions(self):
+        return self.version_manager.get_all_selectable_versions()
+
+    def get_optifine_supported_versions(self):
+        return self.version_manager.get_optifine_supported_versions()
+
+    def get_fabric_supported_versions(self):
+        return self.version_manager.get_fabric_supported_versions()
+
     def launch(
         self,
         version,
         username,
         java_path=None,
         ram_gb="4",
-        is_fabric=False,
         loader_version=None,
         progress_callback=None,
+        **kwargs,
     ):
-        if version.startswith("Fabric "):
-            is_fabric = True
-            version = version.replace("Fabric ", "").strip()
-
         if progress_callback:
-            progress_callback("Маніфест версії", "Отримання конфігурації...", 0.02)
+            progress_callback("Конфігурація", "Підготовка профілю версії...", 0.02)
 
-        if is_fabric:
-            version_data = self.version_manager.get_fabric_version_json(
-                version, loader_version
-            )
-        else:
-            version_data = self.version_manager.get_version_json(version)
+        _, mc_version = self.version_manager.parse_version_string(version)
+        version_data, extra_args, version_label = self.version_manager.prepare_version(
+            version_str=version,
+            libraries_dir=self.libraries_dir,
+            loader_version=loader_version,
+            progress_callback=progress_callback,
+        )
 
         java_version_info = version_data.get("javaVersion", {})
         target_java_major = java_version_info.get("majorVersion", 8)
@@ -103,7 +109,7 @@ class MyLauncherCore:
                 java_path = javaw_path
 
         classpath_libs = self.downloader.download_client_and_libraries(
-            version_data, version, progress_callback
+            version_data, mc_version, progress_callback
         )
         self.downloader.download_assets(version_data, progress_callback)
 
@@ -125,7 +131,7 @@ class MyLauncherCore:
             "--username",
             username,
             "--version",
-            f"Fabric-{version}" if is_fabric else version,
+            version_label,
             "--gameDir",
             self.root_dir,
             "--assetsDir",
@@ -140,7 +146,7 @@ class MyLauncherCore:
             "{}",
             "--userType",
             "legacy",
-        ]
+        ] + extra_args
 
         full_command = launch_args + minecraft_args
         if progress_callback:
