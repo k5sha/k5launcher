@@ -137,8 +137,8 @@ class K5LauncherApp(FluentWindow):
 
     def load_versions_async(self):
         try:
-            versions = self.launcher_core.get_release_versions()
-            self.signals.versions_loaded.emit(versions)
+            combined_list = self.launcher_core.get_selectable_versions()
+            self.signals.versions_loaded.emit(combined_list)
         except (
             urllib.error.URLError,
             json.JSONDecodeError,
@@ -148,13 +148,8 @@ class K5LauncherApp(FluentWindow):
         ) as e:
             self.signals.error.emit(f"Помилка завантаження версій: {e}")
 
-    def on_versions_loaded(self, versions):
+    def on_versions_loaded(self, combined_list):
         self.home_interface.combo_version.clear()
-        combined_list = []
-        for v in versions:
-            combined_list.append(v)
-            combined_list.append(f"Fabric {v}")
-
         self.home_interface.combo_version.addItems(combined_list)
         if self.config.last_version in combined_list:
             self.home_interface.combo_version.setCurrentText(self.config.last_version)
