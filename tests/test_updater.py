@@ -1,8 +1,6 @@
 import json
 from urllib.error import URLError
 
-import pytest
-
 from src.utils.updater import check_for_updates
 
 

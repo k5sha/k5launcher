@@ -1,8 +1,6 @@
 import os
 import sys
 
-import pytest
-
 from src.utils.helpers import get_app_dir, resource_path
 
 
