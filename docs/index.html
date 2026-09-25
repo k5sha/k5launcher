@@ -34,120 +34,133 @@
       font-family: 'Unbounded', sans-serif;
     }
     @keyframes moveCircles {
-      0% { transform: translate(0, 0); }
-      50% { transform: translate(var(--dx), var(--dy)); }
-      100% { transform: translate(0, 0); }
+      0% { transform: translate3d(0, 0, 0); }
+      50% { transform: translate3d(var(--dx), var(--dy), 0); }
+      100% { transform: translate3d(0, 0, 0); }
+    }
+    .bg-circle-anim {
+      will-change: transform;
     }
   </style>
 </head>
-<body class="bg-[#0b0a10] text-white font-sans min-h-screen flex flex-col justify-between selection:bg-[#7b61ff] selection:text-white relative overflow-x-hidden">
+<body class="bg-[#0b0a10] text-white font-sans min-h-screen flex flex-col justify-between selection:bg-[#7b61ff] selection:text-white relative overflow-x-hidden antialiased">
 
   <div id="bg-circles" class="fixed inset-0 overflow-hidden pointer-events-none -z-20"></div>
 
-  <div class="absolute top-12 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-gradient-to-tr from-[#7b61ff]/20 to-[#a259ff]/10 blur-[130px] rounded-full pointer-events-none -z-10"></div>
-  <div class="absolute bottom-10 right-10 w-[300px] h-[300px] bg-[#7b61ff]/10 blur-[100px] rounded-full pointer-events-none -z-10"></div>
+  <!-- Ambient Glow Effects -->
+  <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-[600px] h-[250px] sm:h-[350px] bg-gradient-to-tr from-[#7b61ff]/20 to-[#a259ff]/10 blur-[90px] sm:blur-[130px] rounded-full pointer-events-none -z-10"></div>
+  <div class="absolute bottom-10 right-0 w-[200px] sm:w-[300px] h-[200px] sm:h-[300px] bg-[#7b61ff]/10 blur-[80px] sm:blur-[100px] rounded-full pointer-events-none -z-10"></div>
 
-  <header class="w-full max-w-6xl mx-auto px-6 py-6 flex items-center justify-between z-10">
-    <div class="flex items-center gap-3">
-      <img src="https://raw.githubusercontent.com/k5sha/k5launcher/master/assets/logo.png" alt="K5Launcher Logo" class="w-9 h-12 object-contain drop-shadow-[0_0_10px_rgba(123,97,255,0.5)]">
-      <span class="font-brand font-bold text-lg tracking-wide bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">K5Launcher</span>
+  <!-- Header -->
+  <header class="w-full max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between z-10">
+    <div class="flex items-center gap-2.5 sm:gap-3">
+      <img src="https://raw.githubusercontent.com/k5sha/k5launcher/master/assets/logo.png" alt="K5Launcher Logo" class="w-8 h-10 sm:w-9 sm:h-12 object-contain drop-shadow-[0_0_10px_rgba(123,97,255,0.5)]">
+      <span class="font-brand font-bold text-base sm:text-lg tracking-wide bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">K5Launcher</span>
     </div>
-    <a href="https://github.com/k5sha/k5launcher" target="_blank" class="flex items-center gap-2 px-4 py-2 bg-[#181625] hover:bg-[#222035] border border-[#2d2a45] rounded-xl text-sm font-medium transition duration-200">
-      <i class="fa-brands fa-github text-lg"></i>
+    <a href="https://github.com/k5sha/k5launcher" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 bg-[#181625] hover:bg-[#222035] active:scale-95 border border-[#2d2a45] rounded-xl text-xs sm:text-sm font-medium transition-all duration-200">
+      <i class="fa-brands fa-github text-base sm:text-lg"></i>
       <span>GitHub</span>
     </a>
   </header>
 
-  <main class="max-w-5xl mx-auto px-6 py-10 text-center flex-grow flex flex-col justify-center items-center z-10">
+  <!-- Main Hero & Features -->
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12 text-center flex-grow flex flex-col justify-center items-center z-10 w-full">
 
-    <h1 class="font-brand text-4xl sm:text-6xl font-black tracking-tight mb-5 bg-gradient-to-r from-white via-gray-100 to-[#9d86ff] bg-clip-text text-transparent drop-shadow-lg">
+    <h1 class="font-brand text-3xl sm:text-5xl md:text-6xl font-black tracking-tight mb-4 sm:mb-5 bg-gradient-to-r from-white via-gray-100 to-[#9d86ff] bg-clip-text text-transparent drop-shadow-lg leading-tight">
       K5Launcher
     </h1>
     
-    <p class="text-gray-400 text-base sm:text-lg max-w-2xl mb-10 leading-relaxed">
+    <p class="text-gray-400 text-sm sm:text-base md:text-lg max-w-2xl mb-8 sm:mb-10 leading-relaxed px-2">
       Сучасний, ультра-швидкий та легкий лаунчер Minecraft. Повна підтримка <span class="text-gray-200 font-medium">OptiFine</span> та <span class="text-gray-200 font-medium">Fabric</span>.
     </p>
 
-    <div class="flex flex-col sm:flex-row gap-4 w-full justify-center max-w-md mb-16">
+    <!-- CTAs -->
+    <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full justify-center max-w-md mb-12 sm:mb-16 px-2">
       <a href="https://github.com/k5sha/k5launcher/releases/latest/download/k5launcher-setup.exe" 
-         class="group relative flex items-center justify-center gap-3 bg-[#7b61ff] hover:bg-[#684be3] text-white font-semibold py-4 px-6 rounded-2xl transition-all duration-300 shadow-[0_0_25px_rgba(123,97,255,0.35)] hover:shadow-[0_0_35px_rgba(123,97,255,0.5)] hover:-translate-y-0.5">
-        <i class="fa-solid fa-download text-lg group-hover:scale-110 transition-transform"></i>
-        <span>Завантажити Інсталятор (.exe)</span>
+         class="group w-full sm:w-auto relative flex items-center justify-center gap-3 bg-[#7b61ff] hover:bg-[#684be3] active:scale-[0.98] text-white font-semibold py-3.5 sm:py-4 px-6 rounded-2xl transition-all duration-300 shadow-[0_0_25px_rgba(123,97,255,0.35)] hover:shadow-[0_0_35px_rgba(123,97,255,0.5)]">
+        <i class="fa-solid fa-download text-base sm:text-lg group-hover:scale-110 transition-transform"></i>
+        <span class="text-sm sm:text-base">Завантажити Інсталятор (.exe)</span>
       </a>
       
       <a href="https://github.com/k5sha/k5launcher/releases/latest/download/k5launcher-portable.zip" 
-         class="flex items-center justify-center gap-3 bg-[#171524] hover:bg-[#201d33] border border-[#2f2b4a] hover:border-[#423c68] text-gray-200 font-semibold py-4 px-6 rounded-2xl transition-all duration-300 hover:-translate-y-0.5">
-        <i class="fa-solid fa-file-zipper text-lg text-gray-400"></i>
-        <span>Portable (.zip)</span>
+         class="w-full sm:w-auto flex items-center justify-center gap-3 bg-[#171524] hover:bg-[#201d33] active:scale-[0.98] border border-[#2f2b4a] hover:border-[#423c68] text-gray-200 font-semibold py-3.5 sm:py-4 px-6 rounded-2xl transition-all duration-300">
+        <i class="fa-solid fa-file-zipper text-base sm:text-lg text-gray-400"></i>
+        <span class="text-sm sm:text-base">Portable (.zip)</span>
       </a>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-left w-full">
+    <!-- Feature Cards Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 text-left w-full">
       
-      <div class="p-6 rounded-2xl bg-[#141220]/80 border border-[#25223a] hover:border-[#7b61ff]/40 transition-all duration-300 backdrop-blur-md group hover:-translate-y-1">
-        <div class="w-12 h-12 rounded-xl bg-[#7b61ff]/10 flex items-center justify-center text-[#7b61ff] text-xl mb-4 group-hover:bg-[#7b61ff] group-hover:text-white transition-colors">
+      <div class="p-5 sm:p-6 rounded-2xl bg-[#141220]/80 border border-[#25223a] hover:border-[#7b61ff]/40 transition-all duration-300 backdrop-blur-md group hover:-translate-y-1">
+        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-[#7b61ff]/10 flex items-center justify-center text-[#7b61ff] text-lg sm:text-xl mb-3.5 sm:mb-4 group-hover:bg-[#7b61ff] group-hover:text-white transition-colors">
           <i class="fa-solid fa-wand-magic-sparkles"></i>
         </div>
-        <h3 class="font-bold text-lg mb-2 text-white">OptiFine & Shaders</h3>
-        <p class="text-gray-400 text-sm leading-relaxed">Вбудоване встановлення OptiFine для підвищення FPS та підтримки шейдерів в один клік.</p>
+        <h3 class="font-bold text-base sm:text-lg mb-1.5 sm:mb-2 text-white">OptiFine & Shaders</h3>
+        <p class="text-gray-400 text-xs sm:text-sm leading-relaxed">Вбудоване встановлення OptiFine для підвищення FPS та підтримки шейдерів в один клік.</p>
       </div>
 
-      <div class="p-6 rounded-2xl bg-[#141220]/80 border border-[#25223a] hover:border-[#7b61ff]/40 transition-all duration-300 backdrop-blur-md group hover:-translate-y-1">
-        <div class="w-12 h-12 rounded-xl bg-[#7b61ff]/10 flex items-center justify-center text-[#7b61ff] text-xl mb-4 group-hover:bg-[#7b61ff] group-hover:text-white transition-colors">
+      <div class="p-5 sm:p-6 rounded-2xl bg-[#141220]/80 border border-[#25223a] hover:border-[#7b61ff]/40 transition-all duration-300 backdrop-blur-md group hover:-translate-y-1">
+        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-[#7b61ff]/10 flex items-center justify-center text-[#7b61ff] text-lg sm:text-xl mb-3.5 sm:mb-4 group-hover:bg-[#7b61ff] group-hover:text-white transition-colors">
           <i class="fa-solid fa-cubes"></i>
         </div>
-        <h3 class="font-bold text-lg mb-2 text-white">Fabric</h3>
-        <p class="text-gray-400 text-sm leading-relaxed">Пряма інтеграція популярних загрузчиків модів без складних ручних налаштувань.</p>
+        <h3 class="font-bold text-base sm:text-lg mb-1.5 sm:mb-2 text-white">Fabric</h3>
+        <p class="text-gray-400 text-xs sm:text-sm leading-relaxed">Пряма інтеграція популярних загрузчиків модів без складних ручних налаштувань.</p>
       </div>
 
-      <div class="p-6 rounded-2xl bg-[#141220]/80 border border-[#25223a] hover:border-[#7b61ff]/40 transition-all duration-300 backdrop-blur-md group hover:-translate-y-1">
-        <div class="w-12 h-12 rounded-xl bg-[#7b61ff]/10 flex items-center justify-center text-[#7b61ff] text-xl mb-4 group-hover:bg-[#7b61ff] group-hover:text-white transition-colors">
+      <div class="p-5 sm:p-6 rounded-2xl bg-[#141220]/80 border border-[#25223a] hover:border-[#7b61ff]/40 transition-all duration-300 backdrop-blur-md group hover:-translate-y-1">
+        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-[#7b61ff]/10 flex items-center justify-center text-[#7b61ff] text-lg sm:text-xl mb-3.5 sm:mb-4 group-hover:bg-[#7b61ff] group-hover:text-white transition-colors">
           <i class="fa-solid fa-palette"></i>
         </div>
-        <h3 class="font-bold text-lg mb-2 text-white">Fluent UI</h3>
-        <p class="text-gray-400 text-sm leading-relaxed">Сучасний інтерфейс у стилі Windows 11 із приємними анімаціями та темною темою.</p>
+        <h3 class="font-bold text-base sm:text-lg mb-1.5 sm:mb-2 text-white">Fluent UI</h3>
+        <p class="text-gray-400 text-xs sm:text-sm leading-relaxed">Сучасний інтерфейс у стилі Windows 11 із приємними анімаціями та темною темою.</p>
       </div>
 
-      <div class="p-6 rounded-2xl bg-[#141220]/80 border border-[#25223a] hover:border-[#7b61ff]/40 transition-all duration-300 backdrop-blur-md group hover:-translate-y-1">
-        <div class="w-12 h-12 rounded-xl bg-[#7b61ff]/10 flex items-center justify-center text-[#7b61ff] text-xl mb-4 group-hover:bg-[#7b61ff] group-hover:text-white transition-colors">
+      <div class="p-5 sm:p-6 rounded-2xl bg-[#141220]/80 border border-[#25223a] hover:border-[#7b61ff]/40 transition-all duration-300 backdrop-blur-md group hover:-translate-y-1">
+        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-[#7b61ff]/10 flex items-center justify-center text-[#7b61ff] text-lg sm:text-xl mb-3.5 sm:mb-4 group-hover:bg-[#7b61ff] group-hover:text-white transition-colors">
           <i class="fa-solid fa-gauge-high"></i>
         </div>
-        <h3 class="font-bold text-lg mb-2 text-white">Ультра-швидкість</h3>
-        <p class="text-gray-400 text-sm leading-relaxed">Миттєвий запуск без реклами, фонових процесів та зайвого навантаження на систему.</p>
+        <h3 class="font-bold text-base sm:text-lg mb-1.5 sm:mb-2 text-white">Ультра-швидкість</h3>
+        <p class="text-gray-400 text-xs sm:text-sm leading-relaxed">Миттєвий запуск без реклами, фонових процесів та зайвого навантаження на систему.</p>
       </div>
 
-      <div class="p-6 rounded-2xl bg-[#141220]/80 border border-[#25223a] hover:border-[#7b61ff]/40 transition-all duration-300 backdrop-blur-md group hover:-translate-y-1">
-        <div class="w-12 h-12 rounded-xl bg-[#7b61ff]/10 flex items-center justify-center text-[#7b61ff] text-xl mb-4 group-hover:bg-[#7b61ff] group-hover:text-white transition-colors">
+      <div class="p-5 sm:p-6 rounded-2xl bg-[#141220]/80 border border-[#25223a] hover:border-[#7b61ff]/40 transition-all duration-300 backdrop-blur-md group hover:-translate-y-1 sm:col-span-2 lg:col-span-1">
+        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-[#7b61ff]/10 flex items-center justify-center text-[#7b61ff] text-lg sm:text-xl mb-3.5 sm:mb-4 group-hover:bg-[#7b61ff] group-hover:text-white transition-colors">
           <i class="fa-solid fa-shield-halved"></i>
         </div>
-        <h3 class="font-bold text-lg mb-2 text-white">Безпечно та Відкрито</h3>
-        <p class="text-gray-400 text-sm leading-relaxed">Повністю відкритий вихідний код на GitHub без прихованих програм та телеметрії.</p>
+        <h3 class="font-bold text-base sm:text-lg mb-1.5 sm:mb-2 text-white">Безпечно та Відкрито</h3>
+        <p class="text-gray-400 text-xs sm:text-sm leading-relaxed">Повністю відкритий вихідний код на GitHub без прихованих програм та телеметрії.</p>
       </div>
 
     </div>
 
   </main>
 
-  <footer class="w-full text-center py-6 text-gray-500 text-sm border-t border-[#181625] z-10">
-    <p>K5Launcher • Crafted with 💜 by <a href="https://github.com/k5sha" class="text-gray-400 hover:text-white transition underline underline-offset-4">k5sha</a></p>
+  <!-- Footer -->
+  <footer class="w-full text-center py-5 sm:py-6 text-gray-500 text-xs sm:text-sm border-t border-[#181625] z-10 px-4">
+    <p>K5Launcher • Crafted with 💜 by <a href="https://github.com/k5sha" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-white transition underline underline-offset-4">k5sha</a></p>
   </footer>
 
 <script>
   (function() {
     const container = document.getElementById('bg-circles');
-    const numCircles = 20;
+    if (!container) return;
+
+    // Зменшуємо кількість анімованих об'єктів для мобільних пристроїв заради FPS
+    const isMobile = window.innerWidth < 640;
+    const numCircles = isMobile ? 8 : 18;
 
     for (let i = 0; i < numCircles; i++) {
       const circle = document.createElement('div');
-      const size = Math.random() * (200 - 50) + 50;
-      const blur = Math.random() * 20;
-      const opacity = Math.random() * (0.3 - 0.1) + 0.1;
+      const size = Math.random() * (isMobile ? 120 : 180) + 40;
+      const blur = Math.random() * (isMobile ? 12 : 20);
+      const opacity = Math.random() * 0.15 + 0.08;
       const color = `hsl(${Math.random() * 30 + 260}, 100%, 50%)`;
-      const dx = (Math.random() - 0.5) * 400;
-      const dy = (Math.random() - 0.5) * 400;
-      const duration = Math.random() * (30 - 15) + 15;
+      const dx = (Math.random() - 0.5) * (isMobile ? 200 : 350);
+      const dy = (Math.random() - 0.5) * (isMobile ? 200 : 350);
+      const duration = Math.random() * 15 + 15;
 
-      circle.className = 'absolute rounded-full';
+      circle.className = 'absolute rounded-full bg-circle-anim';
       circle.style.cssText = `
         width: ${size}px;
         height: ${size}px;
