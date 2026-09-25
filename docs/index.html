@@ -1,65 +1,168 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html lang="uk" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>K5Launcher — Modern Minecraft Launcher</title>
+
+  <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/k5sha/k5launcher/master/assets/logo.png">
+  <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/k5sha/k5launcher/master/assets/logo.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;800;900&display=swap" rel="stylesheet">
+
+  <meta name="title" content="K5Launcher — Modern Minecraft Launcher">
+  <meta name="description" content="Сучасний, легкий та швидкий лаунчер Minecraft з підтримкою OptiFine, Fabric, автоматичним викачуванням Java та інтерфейсом Fluent UI.">
+
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://k5sha.github.io/k5launcher/">
+  <meta property="og:title" content="K5Launcher — Modern Minecraft Launcher">
+  <meta property="og:description" content="Сучасний, легкий та швидкий лаунчер Minecraft з підтримкою OptiFine, Fabric, автоматичним викачуванням Java та інтерфейсом Fluent UI.">
+  <meta property="og:image" content="https://raw.githubusercontent.com/k5sha/k5launcher/master/assets/og-image.png">
+
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://k5sha.github.io/k5launcher/">
+  <meta property="twitter:title" content="K5Launcher — Modern Minecraft Launcher">
+  <meta property="twitter:description" content="Сучасний, легкий та швидкий лаунчер Minecraft з підтримкою OptiFine, Fabric, автоматичним викачуванням Java та інтерфейсом Fluent UI.">
+  <meta property="twitter:image" content="https://raw.githubusercontent.com/k5sha/k5launcher/master/assets/og-image.png">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .font-brand {
+      font-family: 'Unbounded', sans-serif;
+    }
+    @keyframes moveCircles {
+      0% { transform: translate(0, 0); }
+      50% { transform: translate(var(--dx), var(--dy)); }
+      100% { transform: translate(0, 0); }
+    }
+  </style>
 </head>
-<body class="bg-[#0f0f12] text-white font-sans min-h-screen flex flex-col justify-between">
-  <div class="max-w-4xl mx-auto px-6 py-16 text-center flex-grow flex flex-col justify-center items-center">
-    
-    <div class="mb-6 p-4 bg-[#1a1926] rounded-3xl border border-[#2d2b45] shadow-2xl shadow-[#7b61ff]/10">
-      <img src="https://github.com/k5sha/k5launcher/blob/master/assets/logo.png?raw=true" alt="K5Launcher Logo" class="w-24 h-24 object-contain">
-    </div>
+<body class="bg-[#0b0a10] text-white font-sans min-h-screen flex flex-col justify-between selection:bg-[#7b61ff] selection:text-white relative overflow-x-hidden">
 
-    <h1 class="text-5xl font-extrabold tracking-tight mb-4 bg-gradient-to-r from-white via-gray-200 to-[#7b61ff] bg-clip-text text-transparent">
+  <div id="bg-circles" class="fixed inset-0 overflow-hidden pointer-events-none -z-20"></div>
+
+  <div class="absolute top-12 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-gradient-to-tr from-[#7b61ff]/20 to-[#a259ff]/10 blur-[130px] rounded-full pointer-events-none -z-10"></div>
+  <div class="absolute bottom-10 right-10 w-[300px] h-[300px] bg-[#7b61ff]/10 blur-[100px] rounded-full pointer-events-none -z-10"></div>
+
+  <header class="w-full max-w-6xl mx-auto px-6 py-6 flex items-center justify-between z-10">
+    <div class="flex items-center gap-3">
+      <img src="https://raw.githubusercontent.com/k5sha/k5launcher/master/assets/logo.png" alt="K5Launcher Logo" class="w-9 h-12 object-contain drop-shadow-[0_0_10px_rgba(123,97,255,0.5)]">
+      <span class="font-brand font-bold text-lg tracking-wide bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">K5Launcher</span>
+    </div>
+    <a href="https://github.com/k5sha/k5launcher" target="_blank" class="flex items-center gap-2 px-4 py-2 bg-[#181625] hover:bg-[#222035] border border-[#2d2a45] rounded-xl text-sm font-medium transition duration-200">
+      <i class="fa-brands fa-github text-lg"></i>
+      <span>GitHub</span>
+    </a>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-6 py-10 text-center flex-grow flex flex-col justify-center items-center z-10">
+
+    <h1 class="font-brand text-4xl sm:text-6xl font-black tracking-tight mb-5 bg-gradient-to-r from-white via-gray-100 to-[#9d86ff] bg-clip-text text-transparent drop-shadow-lg">
       K5Launcher
     </h1>
-    <p class="text-gray-400 text-lg max-w-xl mb-8">
-      Сучасний, легкий та швидкий лаунчер Minecraft з підтримкою Fabric, автоматичним викачуванням Java та інтерфейсом Fluent UI.
+    
+    <p class="text-gray-400 text-base sm:text-lg max-w-2xl mb-10 leading-relaxed">
+      Сучасний, ультра-швидкий та легкий лаунчер Minecraft. Повна підтримка <span class="text-gray-200 font-medium">OptiFine</span> та <span class="text-gray-200 font-medium">Fabric</span>.
     </p>
 
-    <div class="flex flex-col sm:flex-row gap-4 w-full justify-center max-w-md mb-12">
+    <div class="flex flex-col sm:flex-row gap-4 w-full justify-center max-w-md mb-16">
       <a href="https://github.com/k5sha/k5launcher/releases/latest/download/k5launcher-setup.exe" 
-         class="flex items-center justify-center gap-3 bg-[#7b61ff] hover:bg-[#684be3] text-white font-semibold py-3.5 px-6 rounded-xl transition shadow-lg shadow-[#7b61ff]/25">
-        <i class="fa-solid fa-download"></i>
+         class="group relative flex items-center justify-center gap-3 bg-[#7b61ff] hover:bg-[#684be3] text-white font-semibold py-4 px-6 rounded-2xl transition-all duration-300 shadow-[0_0_25px_rgba(123,97,255,0.35)] hover:shadow-[0_0_35px_rgba(123,97,255,0.5)] hover:-translate-y-0.5">
+        <i class="fa-solid fa-download text-lg group-hover:scale-110 transition-transform"></i>
         <span>Завантажити Інсталятор (.exe)</span>
       </a>
       
       <a href="https://github.com/k5sha/k5launcher/releases/latest/download/k5launcher-portable.zip" 
-         class="flex items-center justify-center gap-3 bg-[#1e1d2d] hover:bg-[#28263c] border border-[#34314f] text-gray-200 font-semibold py-3.5 px-6 rounded-xl transition">
-        <i class="fa-solid fa-file-zipper"></i>
+         class="flex items-center justify-center gap-3 bg-[#171524] hover:bg-[#201d33] border border-[#2f2b4a] hover:border-[#423c68] text-gray-200 font-semibold py-4 px-6 rounded-2xl transition-all duration-300 hover:-translate-y-0.5">
+        <i class="fa-solid fa-file-zipper text-lg text-gray-400"></i>
         <span>Portable (.zip)</span>
       </a>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-left w-full">
-      <div class="bg-[#161522] p-6 rounded-2xl border border-[#26243a]">
-        <div class="text-[#7b61ff] text-2xl mb-3"><i class="fa-solid fa-bolt"></i></div>
-        <h3 class="font-bold text-lg mb-1">Автоматична Java</h3>
-        <p class="text-gray-400 text-sm">Самостійно підбирає необхідну версію OpenJDK (Java 8 або Java 21) залежно від обраної версії гри.</p>
+      
+      <div class="p-6 rounded-2xl bg-[#141220]/80 border border-[#25223a] hover:border-[#7b61ff]/40 transition-all duration-300 backdrop-blur-md group hover:-translate-y-1">
+        <div class="w-12 h-12 rounded-xl bg-[#7b61ff]/10 flex items-center justify-center text-[#7b61ff] text-xl mb-4 group-hover:bg-[#7b61ff] group-hover:text-white transition-colors">
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
+        </div>
+        <h3 class="font-bold text-lg mb-2 text-white">OptiFine & Shaders</h3>
+        <p class="text-gray-400 text-sm leading-relaxed">Вбудоване встановлення OptiFine для підвищення FPS та підтримки шейдерів в один клік.</p>
       </div>
 
-      <div class="bg-[#161522] p-6 rounded-2xl border border-[#26243a]">
-        <div class="text-[#7b61ff] text-2xl mb-3"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
-        <h3 class="font-bold text-lg mb-1">Підтримка Fabric</h3>
-        <p class="text-gray-400 text-sm">Пряма інтеграція Fabric Loader у список версій без додаткових налаштувань.</p>
+      <div class="p-6 rounded-2xl bg-[#141220]/80 border border-[#25223a] hover:border-[#7b61ff]/40 transition-all duration-300 backdrop-blur-md group hover:-translate-y-1">
+        <div class="w-12 h-12 rounded-xl bg-[#7b61ff]/10 flex items-center justify-center text-[#7b61ff] text-xl mb-4 group-hover:bg-[#7b61ff] group-hover:text-white transition-colors">
+          <i class="fa-solid fa-cubes"></i>
+        </div>
+        <h3 class="font-bold text-lg mb-2 text-white">Fabric</h3>
+        <p class="text-gray-400 text-sm leading-relaxed">Пряма інтеграція популярних загрузчиків модів без складних ручних налаштувань.</p>
       </div>
 
-      <div class="bg-[#161522] p-6 rounded-2xl border border-[#26243a]">
-        <div class="text-[#7b61ff] text-2xl mb-3"><i class="fa-solid fa-palette"></i></div>
-        <h3 class="font-bold text-lg mb-1">Fluent UI</h3>
-        <p class="text-gray-400 text-sm">Сучасний та інтуїтивний дизайн у стилі Windows 11 з підтримкою темної теми.</p>
+      <div class="p-6 rounded-2xl bg-[#141220]/80 border border-[#25223a] hover:border-[#7b61ff]/40 transition-all duration-300 backdrop-blur-md group hover:-translate-y-1">
+        <div class="w-12 h-12 rounded-xl bg-[#7b61ff]/10 flex items-center justify-center text-[#7b61ff] text-xl mb-4 group-hover:bg-[#7b61ff] group-hover:text-white transition-colors">
+          <i class="fa-solid fa-palette"></i>
+        </div>
+        <h3 class="font-bold text-lg mb-2 text-white">Fluent UI</h3>
+        <p class="text-gray-400 text-sm leading-relaxed">Сучасний інтерфейс у стилі Windows 11 із приємними анімаціями та темною темою.</p>
       </div>
+
+      <div class="p-6 rounded-2xl bg-[#141220]/80 border border-[#25223a] hover:border-[#7b61ff]/40 transition-all duration-300 backdrop-blur-md group hover:-translate-y-1">
+        <div class="w-12 h-12 rounded-xl bg-[#7b61ff]/10 flex items-center justify-center text-[#7b61ff] text-xl mb-4 group-hover:bg-[#7b61ff] group-hover:text-white transition-colors">
+          <i class="fa-solid fa-gauge-high"></i>
+        </div>
+        <h3 class="font-bold text-lg mb-2 text-white">Ультра-швидкість</h3>
+        <p class="text-gray-400 text-sm leading-relaxed">Миттєвий запуск без реклами, фонових процесів та зайвого навантаження на систему.</p>
+      </div>
+
+      <div class="p-6 rounded-2xl bg-[#141220]/80 border border-[#25223a] hover:border-[#7b61ff]/40 transition-all duration-300 backdrop-blur-md group hover:-translate-y-1">
+        <div class="w-12 h-12 rounded-xl bg-[#7b61ff]/10 flex items-center justify-center text-[#7b61ff] text-xl mb-4 group-hover:bg-[#7b61ff] group-hover:text-white transition-colors">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <h3 class="font-bold text-lg mb-2 text-white">Безпечно та Відкрито</h3>
+        <p class="text-gray-400 text-sm leading-relaxed">Повністю відкритий вихідний код на GitHub без прихованих програм та телеметрії.</p>
+      </div>
+
     </div>
 
-  </div>
+  </main>
 
-  <footer class="text-center py-6 text-gray-600 text-sm border-t border-[#1a1926]">
-    K5Launcher • Crafted with 💜 by <a href="https://github.com/k5sha" class="text-gray-400 hover:text-white underline">k5sha</a>
+  <footer class="w-full text-center py-6 text-gray-500 text-sm border-t border-[#181625] z-10">
+    <p>K5Launcher • Crafted with 💜 by <a href="https://github.com/k5sha" class="text-gray-400 hover:text-white transition underline underline-offset-4">k5sha</a></p>
   </footer>
 
+<script>
+  (function() {
+    const container = document.getElementById('bg-circles');
+    const numCircles = 20;
+
+    for (let i = 0; i < numCircles; i++) {
+      const circle = document.createElement('div');
+      const size = Math.random() * (200 - 50) + 50;
+      const blur = Math.random() * 20;
+      const opacity = Math.random() * (0.3 - 0.1) + 0.1;
+      const color = `hsl(${Math.random() * 30 + 260}, 100%, 50%)`;
+      const dx = (Math.random() - 0.5) * 400;
+      const dy = (Math.random() - 0.5) * 400;
+      const duration = Math.random() * (30 - 15) + 15;
+
+      circle.className = 'absolute rounded-full';
+      circle.style.cssText = `
+        width: ${size}px;
+        height: ${size}px;
+        background-color: ${color};
+        opacity: ${opacity};
+        filter: blur(${blur}px);
+        left: ${Math.random() * 100}%;
+        top: ${Math.random() * 100}%;
+        animation: moveCircles ${duration}s linear infinite;
+        --dx: ${dx}px;
+        --dy: ${dy}px;
+      `;
+      container.appendChild(circle);
+    }
+  })();
+</script>
 </body>
 </html>
