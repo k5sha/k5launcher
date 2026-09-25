@@ -1,5 +1,5 @@
 #define MyAppName "K5Launcher"
-#define MyAppVersion "1.0.2"
+#define MyAppVersion "1.0.3"
 #define MyAppPublisher "k5sha"
 #define MyAppExeName "K5Launcher.exe"
 
