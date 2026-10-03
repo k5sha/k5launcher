@@ -118,20 +118,25 @@ class MyLauncherCore:
         classpath_str = ";".join(classpath_libs)
         main_class = version_data["mainClass"]
 
+        jvm_flags = [
+            f"-Xmx{ram_gb}G",
+            "-Xms512M",
+            f"-Djava.library.path={self.natives_dir}",
+            "-XX:+UseG1GC",
+            "-Dfile.encoding=UTF-8",
+        ]
+
+        if target_java_major >= 17:
+            jvm_flags.append("--enable-native-access=ALL-UNNAMED")
+
         launch_args = [
             java_path,
-            f"-Djava.library.path={self.natives_dir}",
-            f"-Xmx{ram_gb}G",
+        ] + jvm_flags + [
             "-cp",
             classpath_str,
-            main_class,
+            main_class,  
         ]
         
-        if target_java_major >= 17:
-            launch_args.append("--enable-native-access=ALL-UNNAMED")
-            launch_args.append("-XX:+UseG1GC")
-            launch_args.append("-Dfile.encoding=UTF-8")
-
         minecraft_args = [
             "--username",
             username,
