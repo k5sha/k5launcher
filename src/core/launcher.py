@@ -126,6 +126,11 @@ class MyLauncherCore:
             classpath_str,
             main_class,
         ]
+        
+        if target_java_major >= 17:
+            launch_args.append("--enable-native-access=ALL-UNNAMED")
+            launch_args.append("-XX:+UseG1GC")
+            launch_args.append("-Dfile.encoding=UTF-8")
 
         minecraft_args = [
             "--username",
