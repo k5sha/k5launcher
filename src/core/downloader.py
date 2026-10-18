@@ -4,10 +4,11 @@ import sys
 import urllib.request
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
+from typing import ClassVar
 
 
 class AssetDownloader:
-    MAVEN_REPOS = [
+    MAVEN_REPOS: ClassVar[list[str]] = [
         "https://libraries.minecraft.net/",
         "https://repo1.maven.org/maven2/",
         "https://maven.minecraftforge.net/",

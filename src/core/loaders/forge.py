@@ -48,7 +48,7 @@ class ForgeLoader(BaseLoader):
         """Extract all officially supported Minecraft versions from promo manifests."""
         promos = self._fetch_promos()
         supported = set()
-        for key in promos.keys():
+        for key in promos:
             mc_version = key.split("-")[0]
             supported.add(mc_version)
         return supported
@@ -200,7 +200,7 @@ class ForgeLoader(BaseLoader):
 
                 # Unpack all bundled libraries inside maven/ or libraries/
                 for member in z.namelist():
-                    if member.startswith("maven/") or member.startswith("libraries/"):
+                    if member.startswith(("maven/", "libraries/")):
                         rel_path = member.replace("maven/", "", 1).replace("libraries/", "", 1)
                         if not rel_path or member.endswith("/"):
                             continue
@@ -210,7 +210,7 @@ class ForgeLoader(BaseLoader):
                             dst.write(src.read())
 
                 return version_info, version_id
-        except Exception:
+        except (zipfile.BadZipFile, KeyError, json.JSONDecodeError, OSError):
             return None
 
     def prepare(
@@ -343,6 +343,7 @@ class ForgeLoader(BaseLoader):
                 stderr=subprocess.STDOUT,
                 text=True,
                 creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+                check=False,
             )
 
             installer_path.unlink(missing_ok=True)
@@ -370,7 +371,7 @@ class ForgeLoader(BaseLoader):
                 f"Інсталятор завершив роботу, але файл профілю {version_label}.json не знайдено."
             )
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             if installer_path.exists():
                 installer_path.unlink(missing_ok=True)
             raise RuntimeError(f"Помилка під час підготовки Forge: {e}")

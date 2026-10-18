@@ -12,6 +12,7 @@ def test_parse_version_string(version_manager):
     """Test parsing UI version selection string into loader name and Minecraft release."""
     assert version_manager.parse_version_string("Fabric 1.20.1") == ("Fabric", "1.20.1")
     assert version_manager.parse_version_string("OptiFine 1.20.1") == ("OptiFine", "1.20.1")
+    assert version_manager.parse_version_string("Forge 1.20.1") == ("Forge", "1.20.1")
     assert version_manager.parse_version_string("1.20.1") == ("Vanilla", "1.20.1")
 
 
@@ -20,11 +21,13 @@ def test_get_all_selectable_versions(version_manager, mocker):
     mocker.patch.object(version_manager.vanilla, "get_supported_versions", return_value=["1.20.1"])
     mocker.patch.object(version_manager.optifine, "is_supported", return_value=True)
     mocker.patch.object(version_manager.fabric, "is_supported", return_value=True)
+    mocker.patch.object(version_manager.forge, "is_supported", return_value=True)
     mocker.patch.object(version_manager.optifine, "fetch_available_versions")
     mocker.patch.object(version_manager.fabric, "fetch_supported_versions")
+    mocker.patch.object(version_manager.forge, "fetch_supported_versions")
 
     selectable = version_manager.get_all_selectable_versions()
-    assert selectable == ["1.20.1", "OptiFine 1.20.1", "Fabric 1.20.1"]
+    assert selectable == ["1.20.1", "OptiFine 1.20.1", "Fabric 1.20.1", "Forge 1.20.1"]
 
 
 def test_prepare_version_success(version_manager, mocker):
@@ -34,7 +37,7 @@ def test_prepare_version_success(version_manager, mocker):
     version_manager.loaders["Vanilla"] = mock_loader
 
     data, _, _ = version_manager.prepare_version("1.20.1", "/libraries")
-    
+
     assert data == {"id": "1.20.1"}
     mock_loader.prepare.assert_called_once()
 

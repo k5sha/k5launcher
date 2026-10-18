@@ -96,9 +96,8 @@ class MyLauncherCore:
                     if action == "allow":
                         if os_rule and os_name != current_os:
                             allowed = False
-                    elif action == "disallow":
-                        if os_rule and os_name == current_os:
-                            allowed = False
+                    elif action == "disallow" and os_rule and os_name == current_os:
+                        allowed = False
 
                 if allowed:
                     raw_val = item.get("value", [])
@@ -112,11 +111,10 @@ class MyLauncherCore:
                 if val.startswith("@") and not os.path.isabs(val[1:]):
                     arg_rel_path = val[1:]
                     candidate_path = os.path.join(self.root_dir, arg_rel_path)
-                    if not os.path.exists(candidate_path):
-                        if arg_rel_path.startswith("libraries/"):
-                            candidate_path = os.path.join(
-                                self.libraries_dir, arg_rel_path.replace("libraries/", "", 1)
-                            )
+                    if not os.path.exists(candidate_path) and arg_rel_path.startswith("libraries/"):
+                        candidate_path = os.path.join(
+                            self.libraries_dir, arg_rel_path.replace("libraries/", "", 1)
+                        )
                     val = f"@{candidate_path}"
 
                 jvm_args.append(val)
@@ -168,9 +166,7 @@ class MyLauncherCore:
                         if os_rule:
                             os_name = os_rule.get("name")
                             current_os = "windows" if os.name == "nt" else "linux"
-                            if action == "allow" and os_name != current_os:
-                                allowed = False
-                            elif action == "disallow" and os_name == current_os:
+                            if (action == "allow" and os_name != current_os) or (action == "disallow" and os_name == current_os):
                                 allowed = False
 
                     if allowed:

@@ -75,12 +75,9 @@ class VersionManager:
                 if major >= 26 or (major == 1 and minor >= 21) or (major == 1 and minor == 20 and patch >= 5):
                     return 21
                 # Minecraft 1.18 - 1.20.4 require Java 17
-                elif major == 1 and minor >= 18:
+                elif major == 1 and minor >= 18 or major == 1 and minor == 17:
                     return 17
-                # Minecraft 1.17 requires Java 17 (or 16)
-                elif major == 1 and minor == 17:
-                    return 17
-        except Exception:
+        except (ValueError, IndexError, TypeError):
             pass
 
         return 8
