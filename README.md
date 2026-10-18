@@ -12,114 +12,184 @@
 
 ## Overview
 
-**K5Launcher** is a custom desktop client for Minecraft engineered for speed, clean UX, and seamless dependency handling. It automatically resolves game assets, libraries, and runtime dependencies — including downloading a portable OpenJDK 21 environment if no compatible Java installation is found on the system.
+**K5Launcher** is a high-performance desktop client for Minecraft engineered for speed, clean Windows 11 aesthetics, and seamless dependency handling. It automatically resolves game assets, libraries, and loader manifests - including detecting existing Java installations or downloading portable OpenJDK runtimes (Java 8, 17, or 21+) based on target Minecraft version requirements.
 
 ## Features
 
-* **Fluent Design System**: Sleek Windows 11-style interface with native Dark/Light mode support powered by `qfluentwidgets`.
-* **Automatic Java Management**: Scans local drives for existing JDKs or automatically fetches and extracts portable OpenJDK 21.
-* **Fabric Modpack Integration**: Fetches release manifests dynamically with optional Fabric Loader profile switching.
-* **Multithreaded Asset Synchronizer**: Concurrent downloader for game assets and Maven libraries to minimize load times.
-* **Non-Admin Installation**: Inno Setup installer configures the app in `{localappdata}` to prevent UAC privilege prompts.
+- **Fluent Design System**: Sleek Windows 11-style UI with native Dark/Light mode support powered by `qfluentwidgets`.
+- **Comprehensive Mod Loader Support**:
+  - **Vanilla**: Direct release manifest parsing and asset synchronization.
+  - **Fabric**: Dynamic loader manifest resolution and profile generation.
+  - **OptiFine**: Automated JAR extraction and tweak-class arguments parsing.
+  - **Forge**: Full support for both modern ModLauncher (1.13+) and legacy installer direct extraction (1.7.10 – 1.12.2).
+- **Dynamic Multi-Version Java Management**: Automatically scans system paths or fetches/extracts portable OpenJDK runtimes matching specific Minecraft version requirements (Java 8, 17, 21+).
+- **Multithreaded Asset Synchronizer**: Parallel downloader with multi-repository fallback (Mojang, Maven Central, Forge) for libraries, natives, and asset indexes.
+- **Non-Admin Installation**: Configures silently in `{localappdata}` via Inno Setup to prevent UAC privilege prompts.
+
+---
 
 ## Project Structure
 
 ```text
-E:\supo\
-├── assets/                          # Icons and logos
+k5launcher/
+├── assets/                         # Application icons and branding assets
 ├── src/
 │   ├── __init__.py
-│   ├── main.py                      # Application entry point
+│   ├── main.py                     # Entry point (run via `py -m src.main`)
 │   │
-│   ├── config/                      # Configuration and settings manager
+│   ├── config/                     # Application settings & configuration
 │   │   ├── __init__.py
 │   │   └── settings.py
 │   │
-│   ├── core/                        # Launcher business logic (non-UI)
+│   ├── core/                       # Core business logic & launcher engine
 │   │   ├── __init__.py
-│   │   ├── java.py                  # Java JRE discovery, validation, and download
-│   │   ├── versions.py              # Mojang, Fabric manifest management
-│   │   ├── downloader.py            # Libraries, natives, and assets downloader
-│   │   └── launcher.py              # Argument builder and Minecraft process runner
-│   │
-│   ├── ui/                          # Graphical interface (PyQt6 / QFluentWidgets)
-│   │   ├── __init__.py
-│   │   ├── signals.py               # Qt signals for threading
-│   │   ├── app.py                   # Main FluentWindow interface
-│   │   └── views/                   # Views / Pages
+│   │   ├── java.py                 # JDK/JRE discovery, verification & download
+│   │   ├── versions.py             # Version manifest manager
+│   │   ├── downloader.py           # Parallel asset, library & native downloader
+│   │   ├── launcher.py             # Process builder, argument parser & subprocess runner
+│   │   └── loaders/                # Mod loader adapters
 │   │       ├── __init__.py
-│   │       ├── home_view.py         # Home view (Launch button, Username, Version selector)
-│   │       └── settings_view.py     # Settings view
+│   │       ├── base.py             # Abstract loader base class
+│   │       ├── vanilla.py          # Vanilla game loader
+│   │       ├── fabric.py           # Fabric mod loader adapter
+│   │       ├── optifine.py         # OptiFine installer parser
+│   │       └── forge.py            # Modern & Legacy Forge installer runner
 │   │
-│   └── utils/                       # Helper utilities
+│   ├── ui/                         # PyQt6 & QFluentWidgets graphical interface
+│   │   ├── __init__.py
+│   │   ├── signals.py              # Qt signals for multithreading
+│   │   ├── app.py                  # Main FluentWindow wrapper
+│   │   └── views/                  # Navigation pages
+│   │       ├── __init__.py
+│   │       ├── home_view.py        # Version selector, username & Launch controls
+│   │       └── settings_view.py    # RAM allocation, Java path & dir settings
+│   │
+│   └── utils/                      # Helper utilities
 │       ├── __init__.py
-│       ├── helpers.py               # Path resolution helpers (resource_path, get_app_dir)
-│       └── updater.py               # GitHub API update checker
-├── tests/                           # Complete test suite
-│   ├── __init__.py
-│   ├── test_vanilla.py             # Vanilla loader unit tests
-│   ├── test_fabric.py              # Fabric loader unit tests
-│   ├── test_optifine.py            # OptiFine loader unit tests
-│   ├── test_downloader.py          # Assets & libraries downloader tests
-│   ├── test_java.py                # JRE detection & download tests
-│   ├── test_versions.py            # Version manager tests
-│   ├── test_launcher.py            # Process launcher tests
-│   ├── test_helpers.py             # PyInstaller & path helper tests
-│   ├── test_updater.py             # GitHub release checker tests
+│       ├── helpers.py              # Path resolution (PyInstaller frozen context support)
+│       └── updater.py              # GitHub API release checker
 │
-├── pytest.ini                       # Pytest configuration (pythonpath, testpaths)
-├── K5Launcher.iss                   # Inno Setup compilation script
-├── K5Launcher.spec                  # PyInstaller bundle specification
-├── requirements.txt                 # Project dependencies
-└── README.md                        
+├── tests/                          # Automated Pytest suite
+│   ├── __init__.py
+│   ├── test_vanilla.py
+│   ├── test_fabric.py
+│   ├── test_optifine.py
+│   ├── test_forge.py
+│   ├── test_downloader.py
+│   ├── test_java.py
+│   ├── test_versions.py
+│   ├── test_launcher.py
+│   ├── test_helpers.py
+│   └── test_updater.py
+│
+├── .github/workflows/              # CI/CD Workflows
+│   ├── ci.yml                      # Test suite & Ruff code quality pipeline
+│   └── build.yml                   # Automated PyInstaller & Inno Setup release build
+│
+├── pytest.ini                      # Pytest runner configuration
+├── K5Launcher.iss                  # Inno Setup installer script
+├── K5Launcher.spec                 # PyInstaller specification
+├── requirements.txt                # Production dependencies
+├── requirements-dev.txt            # Development & testing dependencies
+└── README.md                       # Documentation
+
 ```
 
 ## Local Development
 
 ### Prerequisites
 
-* Python 3.10 or higher
-* Windows 10 / 11
+* **Python 3.10** or higher
+* **Windows 10 / 11**
 
-### Installation
+### Setup Environment
 
 1. Clone the repository:
-```bash
+```cmd
 git clone https://github.com/k5sha/k5launcher.git
 cd k5launcher
 
 ```
 
 
-2. Install required dependencies:
-```bash
-pip install -r requirements.txt
+2. Create and activate a virtual environment (optional, but recommended):
+```cmd
+py -m venv venv
+venv\Scripts\activate
 
 ```
 
 
-3. Run the application:
-```bash
-python -m src.main
+3. Install development and testing dependencies:
+```cmd
+pip install -r requirements-dev.txt
 
 ```
 
 
 
-## Building Executables
+### Running the Application
 
-1. **Build the application folder:**
-```powershell
+To launch the application from source code, always run the module entry point using Python's `-m` flag:
+
+```cmd
+py -m src.main
+
+```
+
+---
+
+## Running Tests & Code Quality Checks
+
+### Test Suite Execution
+
+Run the complete test suite using `pytest`:
+
+```cmd
+pytest
+
+```
+
+To run tests with detailed verbosity and coverage reporting:
+
+```cmd
+pytest -v --cov=src --cov-report=term-missing
+
+```
+
+### Code Formatting and Linting
+
+Check code quality and adhere to formatting standards using **Ruff**:
+
+```cmd
+# Run linter checks
+ruff check .
+
+# Automatically fix safe linting issues
+ruff check --fix .
+
+```
+
+---
+
+## Building Executables & Installer
+
+### 1. Build Executable Bundle (PyInstaller)
+
+To compile the standalone portable folder bundle (`dist/K5Launcher/`):
+
+```cmd
 pyinstaller --noconfirm K5Launcher.spec
 
 ```
 
+### 2. Compile Windows Installer (Inno Setup)
 
-2. **Compile the installer package:**
-```powershell
-& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" K5Launcher.iss
+To build the setup installer (`k5launcher-setup.exe`):
+
+```cmd
+"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" K5Launcher.iss
 
 ```
 
-
-*The compiled installer will be available at `installer_output/k5launcher_setup.exe`.*
+*The compiled installer will be available at `installer_output/k5launcher-setup.exe`.*
