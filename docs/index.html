@@ -6,7 +6,7 @@
   <script>
     (function() {
       var userLang = navigator.language || navigator.userLanguage || '';
-      if (userLang.toLowerCase().startsWith('uk')) {
+      if (userLang.toLowerCase().startsWith('uk') || userLang.startsWith('ru')) {
         window.location.replace('./uk/');
       } else {
         window.location.replace('./en/');
