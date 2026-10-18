@@ -3,9 +3,17 @@ import os
 import sys
 import urllib.request
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
+from typing import ClassVar
 
 
 class AssetDownloader:
+    MAVEN_REPOS: ClassVar[list[str]] = [
+        "https://libraries.minecraft.net/",
+        "https://repo1.maven.org/maven2/",
+        "https://maven.minecraftforge.net/",
+    ]
+
     def __init__(
         self, versions_dir: str, libraries_dir: str, natives_dir: str, assets_dir: str
     ):
@@ -14,22 +22,39 @@ class AssetDownloader:
         self.natives_dir = natives_dir
         self.assets_dir = assets_dir
 
-    def _parse_maven_library(self, lib: dict):
-        name = lib["name"]
-        base_url = lib.get("url", "https://repo1.maven.org/maven2/")
+    def _parse_maven_library(self, lib: dict) -> tuple[list[str], str | None]:
+        """Parse Maven artifact coordinates and return candidate URLs with local destination path."""
+        name = lib.get("name")
+        if not name:
+            return [], None
 
         parts = name.split(":")
+        if len(parts) < 3:
+            return [], None
+
         group = parts[0].replace(".", "/")
         artifact = parts[1]
         version = parts[2]
+        classifier = f"-{parts[3]}" if len(parts) > 3 else ""
 
-        rel_path = f"{group}/{artifact}/{version}/{artifact}-{version}.jar"
-        full_url = f"{base_url.rstrip('/')}/{rel_path}"
+        rel_path = f"{group}/{artifact}/{version}/{artifact}-{version}{classifier}.jar"
         local_path = os.path.join(self.libraries_dir, os.path.normpath(rel_path))
 
-        return full_url, local_path
+        # Build candidate download URLs
+        urls = []
+        custom_url = lib.get("url")
+        if custom_url:
+            urls.append(f"{custom_url.rstrip('/')}/{rel_path}")
+
+        for repo in self.MAVEN_REPOS:
+            repo_url = f"{repo.rstrip('/')}/{rel_path}"
+            if repo_url not in urls:
+                urls.append(repo_url)
+
+        return urls, local_path
 
     def _is_lib_allowed(self, lib: dict) -> bool:
+        """Check operating system rules for library compatibility."""
         if "rules" not in lib:
             return True
         allowed = False
@@ -46,6 +71,7 @@ class AssetDownloader:
         return allowed
 
     def _extract_natives(self, jar_path: str):
+        """Extract native binaries (.dll, .so, .dylib) from jar archives."""
         if not os.path.exists(jar_path):
             return
         try:
@@ -65,63 +91,125 @@ class AssetDownloader:
         except (zipfile.BadZipFile, OSError):
             pass
 
-    def _download_file(self, url: str, local_path: str):
-        if not os.path.exists(local_path):
-            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+    def _download_file(self, urls: str | list[str], local_path: str):
+        """Helper to download a file from a single URL or candidate URLs with fallback support."""
+        if os.path.exists(local_path) and os.path.getsize(local_path) > 0:
+            return
+
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        candidate_urls = [urls] if isinstance(urls, str) else urls
+
+        for url in candidate_urls:
+            if not url:
+                continue
             try:
                 req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
                 with (
-                    urllib.request.urlopen(req, timeout=10) as response,
+                    urllib.request.urlopen(req, timeout=12) as response,
                     open(local_path, "wb") as f,
                 ):
                     f.write(response.read())
+                # Successfully downloaded
+                if os.path.exists(local_path) and os.path.getsize(local_path) > 0:
+                    return
             except (urllib.error.URLError, TimeoutError, OSError):
-                pass
+                if os.path.exists(local_path):
+                    os.remove(local_path)
+                continue
 
     def download_client_and_libraries(
         self, version_data: dict, version: str, progress_callback=None
     ) -> list:
-        client_url = version_data["downloads"]["client"]["url"]
-        client_jar_path = os.path.join(self.versions_dir, version, f"{version}.jar")
+        """
+        Downloads Minecraft client JAR and all required Maven/loader libraries.
+        Safely falls back to base vanilla version JSON if 'downloads' key is missing.
+        """
+        # 1. Resolve client download URL safely
+        downloads = version_data.get("downloads", {})
+        client_info = downloads.get("client", {})
+        client_url = client_info.get("url")
 
-        if not os.path.exists(client_jar_path):
+        # Fallback to base Vanilla JSON if custom loader profile (Forge/OptiFine) lacks 'downloads'
+        if not client_url:
+            base_version = version_data.get("inheritsFrom")
+            if not base_version:
+                cleaned = version.strip()
+                for prefix in ("Forge ", "Fabric ", "OptiFine "):
+                    if cleaned.startswith(prefix):
+                        cleaned = cleaned.replace(prefix, "").strip()
+                        break
+                base_version = cleaned
+
+            vanilla_json_path = os.path.join(
+                self.versions_dir, base_version, f"{base_version}.json"
+            )
+            if os.path.exists(vanilla_json_path):
+                try:
+                    with open(vanilla_json_path, "r", encoding="utf-8") as f:
+                        vanilla_data = json.load(f)
+                        client_url = (
+                            vanilla_data.get("downloads", {})
+                            .get("client", {})
+                            .get("url")
+                        )
+                except (OSError, json.JSONDecodeError):
+                    pass
+
+        # 2. Download client JAR
+        client_jar_path = os.path.join(self.versions_dir, version, f"{version}.jar")
+        if client_url and not os.path.exists(client_jar_path):
             if progress_callback:
-                progress_callback("Завантаження client.jar...", "client.jar", 0.05)
+                progress_callback("Завантаження client.jar...", f"{version}.jar", 0.05)
             self._download_file(client_url, client_jar_path)
 
         classpath_libs = []
-        libs_to_download = version_data["libraries"]
+        libs_to_download = version_data.get("libraries", [])
         total_libs = len(libs_to_download)
 
+        # 3. Process and download required libraries
         for index, lib in enumerate(libs_to_download):
             if not self._is_lib_allowed(lib):
                 continue
 
-            percent = 0.1 + (index / total_libs) * 0.35
-
+            percent = 0.1 + (index / max(total_libs, 1)) * 0.35
             lib_path = None
+
+            # Standard Mojang artifact download format
             if "downloads" in lib and "artifact" in lib["downloads"]:
                 artifact = lib["downloads"]["artifact"]
-                lib_path = os.path.join(self.libraries_dir, artifact["path"])
-                lib_url = artifact["url"]
-                if progress_callback:
+                lib_path = os.path.join(
+                    self.libraries_dir, os.path.normpath(artifact["path"])
+                )
+                lib_url = artifact.get("url")
+
+                # Fallback URL candidates
+                urls, _ = self._parse_maven_library(lib)
+                if lib_url and lib_url not in urls:
+                    urls.insert(0, lib_url)
+
+                if progress_callback and lib_path:
                     progress_callback(
                         "Завантаження бібліотек", os.path.basename(lib_path), percent
                     )
-                self._download_file(lib_url, lib_path)
-                classpath_libs.append(lib_path)
-            elif "name" in lib and "downloads" not in lib:
-                lib_url, lib_path = self._parse_maven_library(lib)
-                if lib_url and lib_path:
+                self._download_file(urls, lib_path)
+                if os.path.exists(lib_path):
+                    classpath_libs.append(lib_path)
+
+            # Custom/Forge/Fabric Maven notation library format
+            elif "name" in lib:
+                urls, lib_path = self._parse_maven_library(lib)
+                if urls and lib_path:
                     if progress_callback:
                         progress_callback(
                             "Завантаження бібліотек",
                             os.path.basename(lib_path),
                             percent,
                         )
-                    self._download_file(lib_url, lib_path)
-                    classpath_libs.append(lib_path)
+                    self._download_file(urls, lib_path)
+                    if os.path.exists(lib_path):
+                        classpath_libs.append(lib_path)
 
+            # Handle native binaries
             if "natives" in lib:
                 native_key = lib["natives"].get("windows")
                 if native_key:
@@ -133,25 +221,30 @@ class AssetDownloader:
                         if native_key in classifiers:
                             native_artifact = classifiers[native_key]
                             native_path = os.path.join(
-                                self.libraries_dir, native_artifact["path"]
+                                self.libraries_dir,
+                                os.path.normpath(native_artifact["path"]),
                             )
-                            native_url = native_artifact["url"]
-                            if progress_callback:
+                            native_url = native_artifact.get("url")
+                            if progress_callback and native_path:
                                 progress_callback(
                                     "Завантаження нативів",
                                     os.path.basename(native_path),
                                     percent,
                                 )
-                            self._download_file(native_url, native_path)
+                            if native_url:
+                                self._download_file(native_url, native_path)
                             self._extract_natives(native_path)
 
             if lib_path and ("natives" in lib_path or "native" in lib_path):
                 self._extract_natives(lib_path)
 
-        classpath_libs.append(client_jar_path)
+        if os.path.exists(client_jar_path):
+            classpath_libs.append(client_jar_path)
+
         return classpath_libs
 
     def download_assets(self, version_data: dict, progress_callback=None):
+        """Downloads game assets and index manifest using thread pool execution."""
         asset_info = version_data.get("assetIndex", {})
         asset_id = asset_info.get("id")
         asset_url = asset_info.get("url")
@@ -168,10 +261,23 @@ class AssetDownloader:
         if not os.path.exists(index_file_path):
             if progress_callback:
                 progress_callback("Індекс ресурсів", f"{asset_id}.json", 0.45)
-            urllib.request.urlretrieve(asset_url, index_file_path)
+            try:
+                req = urllib.request.Request(
+                    asset_url, headers={"User-Agent": "Mozilla/5.0"}
+                )
+                with (
+                    urllib.request.urlopen(req, timeout=10) as resp,
+                    open(index_file_path, "wb") as f,
+                ):
+                    f.write(resp.read())
+            except (urllib.error.URLError, TimeoutError, OSError):
+                return
 
-        with open(index_file_path, "r", encoding="utf-8") as f:
-            index_data = json.load(f)
+        try:
+            with open(index_file_path, "r", encoding="utf-8") as f:
+                index_data = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            return
 
         objects = index_data.get("objects", {})
         download_queue = []
@@ -203,7 +309,9 @@ class AssetDownloader:
             url, folder_path, file_path, asset_name = task
             try:
                 os.makedirs(folder_path, exist_ok=True)
-                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                req = urllib.request.Request(
+                    url, headers={"User-Agent": "Mozilla/5.0"}
+                )
                 with (
                     urllib.request.urlopen(req, timeout=7) as response,
                     open(file_path, "wb") as f,
@@ -220,8 +328,6 @@ class AssetDownloader:
                         os.path.basename(asset_name),
                         percent,
                     )
-
-        from concurrent.futures import ThreadPoolExecutor
 
         with ThreadPoolExecutor(max_workers=16) as executor:
             executor.map(download_single_file, download_queue)
