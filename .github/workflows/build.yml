@@ -1,37 +1,61 @@
-name: Build Installer
-on: 
-    push
+name: Build and Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
 jobs:
-  compile:
-    name: Compile
+  build-and-release:
+    name: Build and Release
     runs-on: windows-latest
 
     steps:
-        - name: Checkout Repository
-          uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
 
-        - name: Set up Python
-          uses: actions/setup-python@v5
-          with:
-            python-version: '3.11'
-            cache: 'pip'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
 
-        - name: Install Dependencies
-          run: |
-            python -m pip install --upgrade pip
-            pip install -r requirements-dev.txt
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
 
-        - name: Run PyInstaller
-          run: pyinstaller --noconfirm K5Launcher.spec
+      - name: Build Application with PyInstaller
+        run: pyinstaller --noconfirm --log-level WARN K5Launcher.spec
 
-        - name: Compile .ISS to .EXE Installer
-          uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
-          with:
-            path: ./K5Launcher.iss
-            options: /O+
+      - name: Create Portable ZIP
+        run: |
+          Compress-Archive -Path dist\K5Launcher\* -DestinationPath k5launcher-portable.zip
 
-        - name: Upload Installer Artifact
-          uses: actions/upload-artifact@v4
-          with:
-            name: K5Launcher-Installer
-            path: installer_output/k5launcher-setup.exe
+      - name: Build Installer with Inno Setup
+        run: iscc K5Launcher.iss
+
+      - name: Upload Artifacts (For Manual Testing)
+        uses: actions/upload-artifact@v4
+        with:
+          name: k5launcher-builds
+          path: |
+            k5launcher-portable.zip
+            installer_output/k5launcher-setup.exe
+          retention-days: 1
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: k5launcher ${{ github.ref_name }} 
+          generate_release_notes: true
+          files: |
+            k5launcher-portable.zip
+            installer_output/k5launcher-setup.exe
