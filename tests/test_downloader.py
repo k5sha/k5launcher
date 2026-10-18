@@ -19,11 +19,13 @@ def downloader(tmp_path):
 
 
 def test_parse_maven_library(downloader):
-    """Test parsing a Maven coordinate string into download URL and local path."""
+    """Test parsing a Maven coordinate string into download URLs list and local path."""
     lib = {"name": "com.mojang:brigadier:1.0.18"}
-    url, local_path = downloader._parse_maven_library(lib)
-    
-    assert url == "https://repo1.maven.org/maven2/com/mojang/brigadier/1.0.18/brigadier-1.0.18.jar"
+    urls, local_path = downloader._parse_maven_library(lib)
+
+    assert isinstance(urls, list)
+    assert "https://libraries.minecraft.net/com/mojang/brigadier/1.0.18/brigadier-1.0.18.jar" in urls
+    assert "https://repo1.maven.org/maven2/com/mojang/brigadier/1.0.18/brigadier-1.0.18.jar" in urls
     assert local_path.endswith(os.path.normpath("com/mojang/brigadier/1.0.18/brigadier-1.0.18.jar"))
 
 
@@ -47,7 +49,7 @@ def test_extract_natives(downloader, tmp_path):
 
     downloader._extract_natives(str(jar_path))
     extracted_file = os.path.join(downloader.natives_dir, "test.dll")
-    
+
     assert os.path.exists(extracted_file)
     with open(extracted_file, "rb") as f:
         assert f.read() == b"fake_dll_data"
@@ -70,7 +72,12 @@ def test_download_client_and_libraries(downloader, mocker):
         ],
     }
 
-    mocker.patch.object(downloader, "_download_file")
+    def mock_download(urls, local_path):
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        with open(local_path, "w", encoding="utf-8") as f:
+            f.write("dummy")
+
+    mocker.patch.object(downloader, "_download_file", side_effect=mock_download)
     mock_callback = mocker.MagicMock()
 
     classpath = downloader.download_client_and_libraries(
@@ -93,7 +100,7 @@ def test_download_assets(downloader, mocker):
     index_dir = os.path.join(downloader.assets_dir, "indexes")
     os.makedirs(index_dir, exist_ok=True)
     index_file = os.path.join(index_dir, "1.20.json")
-    
+
     with open(index_file, "w", encoding="utf-8") as f:
         json.dump(asset_index, f)
 
@@ -115,7 +122,7 @@ def test_download_assets(downloader, mocker):
     )
 
     downloader.download_assets(version_data)
-    
+
     expected_asset_path = os.path.join(
         downloader.assets_dir,
         "objects",
