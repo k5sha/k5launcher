@@ -2,7 +2,7 @@ import json
 import urllib.error
 import urllib.request
 
-CURRENT_VERSION = "v1.0.3"
+CURRENT_VERSION = "v1.0.5"
 
 
 def check_for_updates(current_version: str = CURRENT_VERSION):
